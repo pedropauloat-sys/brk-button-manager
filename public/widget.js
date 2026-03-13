@@ -3,7 +3,7 @@
   if(window.__BRK_WIDGET__)return;
   window.__BRK_WIDGET__=true;
 
-  const API_BASE='https://buttons.usebrk.com.br';
+  const API_BASE=window.__BRK_API_BASE||'https://n8n-brk-buttons.pqcilq.easypanel.host';
   let cachedButtons=[];
 
   // ── Tema ──
@@ -15,16 +15,14 @@
     if(document.getElementById('brk-w-css'))return;
     const s=document.createElement('style');s.id='brk-w-css';
     s.textContent=`
-      #brk-tools-right{padding:0 0 4px;margin:0;background:transparent;border:none;border-bottom:1px solid rgba(0,0,0,.08);margin-bottom:4px}
-      .dark #brk-tools-right{border-bottom-color:rgba(255,255,255,.08)}
-      #brk-tools-right .brk-btn{width:100%;border:none;border-radius:0;padding:8px 16px;font:500 13px -apple-system,system-ui,sans-serif;cursor:pointer;display:flex;align-items:center;gap:10px;background:transparent;color:#374151;margin:0;text-align:left;transition:background .15s,color .15s}
-      #brk-tools-right .brk-btn:hover{background:rgba(0,0,0,.05);color:#111827}
-      .dark #brk-tools-right .brk-btn{color:rgba(255,255,255,.82)}
-      .dark #brk-tools-right .brk-btn:hover{background:rgba(255,255,255,.07);color:#fff}
-      #brk-tools-right .brk-ic{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+      #brk-widget-wrap .brk-btn{width:100%;border:none;border-radius:0;padding:8px 16px;font:500 13px -apple-system,system-ui,sans-serif;cursor:pointer;display:flex;align-items:center;gap:10px;background:transparent;color:#374151;margin:0;text-align:left;transition:background .15s,color .15s}
+      #brk-widget-wrap .brk-btn:hover{background:rgba(0,0,0,.05);color:#111827}
+      .dark #brk-widget-wrap .brk-btn{color:rgba(255,255,255,.82)}
+      .dark #brk-widget-wrap .brk-btn:hover{background:rgba(255,255,255,.07);color:#fff}
+      #brk-widget-wrap .brk-ic{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
       @keyframes brk-spin{to{transform:rotate(360deg)}}
-      .brk-mgr-overlay{position:fixed;inset:0;z-index:999998;background:rgba(0,0,0,.15)}
-      .brk-mgr-modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:999999;font-family:-apple-system,system-ui,sans-serif}
+      .brk-wdg-overlay{position:fixed;inset:0;z-index:999998;background:rgba(0,0,0,.15)}
+      .brk-wdg-modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:999999;font-family:-apple-system,system-ui,sans-serif}
     `;
     document.head.appendChild(s);
   }
@@ -39,8 +37,8 @@
   function createModal(id,title){
     document.getElementById(id)?.remove();document.getElementById(id+'-ov')?.remove();
     const t=T();
-    const ov=document.createElement('div');ov.id=id+'-ov';ov.className='brk-mgr-overlay';
-    const root=document.createElement('div');root.id=id;root.className='brk-mgr-modal';
+    const ov=document.createElement('div');ov.id=id+'-ov';ov.className='brk-wdg-overlay';
+    const root=document.createElement('div');root.id=id;root.className='brk-wdg-modal';
     Object.assign(root.style,{width:'380px',maxWidth:'95vw',background:t.bg,borderRadius:'12px',boxShadow:t.d?'0 20px 60px rgba(0,0,0,.6)':'0 20px 60px rgba(0,0,0,.15)',overflow:'hidden'});
     const hdr=document.createElement('div');
     Object.assign(hdr.style,{padding:'14px 20px',borderBottom:`1px solid ${t.border}`,display:'flex',justifyContent:'space-between',alignItems:'center',background:t.bg2});
@@ -111,28 +109,53 @@
     return null;
   }
 
-  // ── Renderizar botões ──
+  // ── Renderizar botões NOVOS (abaixo dos hardcoded) ──
   function renderButtons(){
     injectCSS();
-    document.getElementById('brk-tools-right')?.remove();
+
+    // Remove widget antigo se existir
+    document.getElementById('brk-widget-wrap')?.remove();
+
+    if(!cachedButtons.length)return false;
+
+    // Filtra visibilidade (vazio = todos)
+    const visible=cachedButtons.filter(b=>!b.visible_to||!b.visible_to.length||b.visible_to.length===0);
+    if(!visible.length)return false;
+
+    // Espera o script antigo injetar primeiro (brk-tools-right)
+    const existingPanel=document.getElementById('brk-tools-right');
+
+    if(existingPanel){
+      // O script antigo já injetou — adiciona os botões NOVOS abaixo do painel existente
+      const wrap=document.createElement('div');
+      wrap.id='brk-widget-wrap';
+      wrap.style.cssText='border-top:1px solid rgba(255,255,255,.06);margin-top:2px;padding-top:2px;';
+
+      visible.forEach(btn=>{
+        const el=document.createElement('button');el.type='button';el.className='brk-btn';
+        el.innerHTML=`<span class="brk-ic">${btn.icon||'🔘'}</span><span>${btn.label||'Botão'}</span>`;
+        if(btn.description)el.title=btn.description;
+        el.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();executeAction(btn)});
+        wrap.appendChild(el);
+      });
+
+      // Insere depois do painel existente
+      existingPanel.after(wrap);
+      return true;
+    }
+
+    // Se o script antigo NÃO existe, cria o painel do zero
     const anchor=findAnchor();if(!anchor)return false;
     const found=findSectionContent(anchor);if(!found)return false;
 
-    // Filtra visibilidade (TODO: pegar email do user logado)
-    const visible=cachedButtons.filter(b=>!b.visible_to||!b.visible_to.length||b.visible_to.length===0);
-
-    if(!visible.length)return false;
-
-    const panel=document.createElement('div');panel.id='brk-tools-right';
-    const wrap=document.createElement('div');wrap.id='brk-btns-wrap';
-    panel.appendChild(wrap);
+    const panel=document.createElement('div');panel.id='brk-widget-wrap';
 
     visible.forEach(btn=>{
       const el=document.createElement('button');el.type='button';el.className='brk-btn';
       el.innerHTML=`<span class="brk-ic">${btn.icon||'🔘'}</span><span>${btn.label||'Botão'}</span>`;
       if(btn.description)el.title=btn.description;
       el.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();executeAction(btn)});
-      wrap.appendChild(el);
+      panel.appendChild(el);
     });
 
     found.content.insertBefore(panel,found.content.firstChild);
@@ -142,15 +165,24 @@
   // ── Init ──
   async function init(){
     await fetchButtons();
-    let tries=0;
-    (function try_(){tries++;if(!renderButtons()&&tries<50)setTimeout(try_,400)})();
-    new MutationObserver(()=>{if(!document.getElementById('brk-tools-right'))renderButtons()}).observe(document.body,{childList:true,subtree:true});
+
+    // Espera um pouco para o script antigo carregar primeiro
+    setTimeout(()=>{
+      let tries=0;
+      (function try_(){tries++;if(!renderButtons()&&tries<50)setTimeout(try_,500)})();
+    }, 2000);
+
+    new MutationObserver(()=>{
+      if(!document.getElementById('brk-widget-wrap')&&cachedButtons.length)renderButtons();
+    }).observe(document.body,{childList:true,subtree:true});
+
     let last=location.href;
-    setInterval(()=>{if(location.href!==last){last=location.href;fetchButtons().then(()=>setTimeout(renderButtons,500))}},800);
-    // Recarrega botões a cada 2 min
+    setInterval(()=>{if(location.href!==last){last=location.href;fetchButtons().then(()=>setTimeout(renderButtons,1500))}},800);
+
+    // Recarrega botões da API a cada 2 min
     setInterval(()=>fetchButtons().then(renderButtons),120000);
   }
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
-  else setTimeout(init,200);
+  else setTimeout(init,300);
 })();
