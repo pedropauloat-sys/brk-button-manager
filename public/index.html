@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BRK Button Manager</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{--bg:#0f172a;--bg2:#1a2233;--bg3:#1e2a3a;--border:#2d3a4d;--text:#e8eaf6;--sub:#8b95a5;--accent:#1f93ff;--danger:#ef4444;--success:#22c55e;--input:#131a27}
+  body{font-family:-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+  .container{max-width:900px;margin:0 auto;padding:24px}
+  .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+  .header h1{font-size:20px;display:flex;align-items:center;gap:10px}
+  .header h1 span{font-size:24px}
+  .badge{font-size:11px;background:var(--bg3);padding:2px 8px;border-radius:10px;color:var(--sub)}
+  .btn{border:none;border-radius:8px;padding:10px 20px;font:600 13px -apple-system,system-ui,sans-serif;cursor:pointer;transition:all .15s}
+  .btn-primary{background:var(--accent);color:#fff}
+  .btn-primary:hover{opacity:.9}
+  .btn-secondary{background:transparent;border:1px solid var(--border);color:var(--text)}
+  .btn-danger{background:transparent;color:var(--danger);border:1px solid var(--danger)}
+  .btn-success{background:var(--success);color:#fff}
+  .empty{text-align:center;padding:60px 20px}
+  .empty .icon{font-size:48px;margin-bottom:12px}
+  .empty .title{font-size:16px;font-weight:600;margin-bottom:6px}
+  .empty .sub{font-size:13px;color:var(--sub)}
+
+  /* Table */
+  .table-header{display:grid;grid-template-columns:50px 1fr 120px 100px 90px;gap:12px;padding:8px 14px;font-size:11px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.04em}
+  .table-row{display:grid;grid-template-columns:50px 1fr 120px 100px 90px;gap:12px;padding:12px 14px;border-radius:8px;background:var(--bg3);border:1px solid var(--border);margin-bottom:6px;align-items:center;cursor:pointer;transition:background .15s}
+  .table-row:hover{background:var(--bg2)}
+  .toggle{width:36px;height:20px;border-radius:10px;border:none;cursor:pointer;position:relative;transition:background .2s;padding:0}
+  .toggle.on{background:var(--accent)}
+  .toggle.off{background:#64748b}
+  .toggle .dot{width:16px;height:16px;border-radius:50%;background:#fff;position:absolute;top:2px;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+  .toggle.on .dot{left:18px}
+  .toggle.off .dot{left:2px}
+  .btn-icon{width:28px;height:28px;border:none;background:transparent;cursor:pointer;border-radius:6px;font-size:14px;display:flex;align-items:center;justify-content:center;transition:background .15s;color:var(--sub)}
+  .btn-icon:hover{background:rgba(255,255,255,.08)}
+  .actions{display:flex;gap:2px;justify-content:flex-end}
+
+  /* Modal */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px}
+  .modal{background:var(--bg);border-radius:12px;width:560px;max-width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.6);overflow:hidden}
+  .modal-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:var(--bg2);flex-shrink:0}
+  .modal-header h2{font-size:16px}
+  .modal-body{flex:1;overflow-y:auto;padding:20px}
+  .modal-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:var(--bg2);flex-shrink:0}
+
+  /* Tabs */
+  .tabs{display:flex;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0}
+  .tab{border:none;background:transparent;padding:10px 20px;font:600 13px -apple-system,system-ui,sans-serif;color:var(--sub);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+  .tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+  /* Form */
+  .form-group{margin-bottom:14px}
+  .form-label{display:block;font-size:11px;font-weight:600;color:var(--sub);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
+  .form-input,.form-select,.form-textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--input);color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border-color .2s,box-shadow .2s}
+  .form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(31,147,255,.15)}
+  .form-textarea{resize:vertical;min-height:60px}
+  .form-row{display:grid;grid-template-columns:1fr auto;gap:12px}
+  .form-hint{font-size:11px;color:var(--sub);margin-top:3px}
+  .checkbox-item{display:flex;gap:10px;padding:12px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);margin-bottom:6px;cursor:pointer}
+  .checkbox-item label{font-size:13px;font-weight:600;cursor:pointer}
+  .checkbox-item .hint{font-size:11px;color:var(--sub);margin-top:2px}
+  .user-item{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg3);border-radius:6px;border:1px solid var(--border);margin-bottom:4px}
+  .user-avatar{width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+  .footer-count{font-size:11px;color:var(--sub)}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1><span>⚡</span> BRK Button Manager <span class="badge">v1.0</span></h1>
+    <button class="btn btn-primary" onclick="openEditor(null)">+ Criar botão</button>
+  </div>
+  <div id="list"></div>
+  <div id="footer-bar" style="margin-top:12px;display:flex;justify-content:space-between;align-items:center">
+    <span class="footer-count" id="count"></span>
+  </div>
+</div>
+
+<!-- Modal Editor -->
+<div id="modal-overlay" class="modal-overlay hidden" onclick="if(event.target===this)closeEditor()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">Criar botão</h2>
+      <button class="btn-icon" onclick="closeEditor()" style="font-size:18px">✕</button>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="acoes" onclick="switchTab('acoes')">Ações</button>
+      <button class="tab" data-tab="condicoes" onclick="switchTab('condicoes')">Condições</button>
+      <button class="tab" data-tab="exibicao" onclick="switchTab('exibicao')">Exibição</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer">
+      <div id="modal-delete"></div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-secondary" onclick="closeEditor()">Cancelar</button>
+        <button class="btn btn-primary" onclick="saveButton()">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API='/api';
+let buttons=[];
+let editBtn=null;
+let editIdx=null;
+let activeTab='acoes';
+
+// ── API ──
+async function api(path,opts={}){
+  const r=await fetch(API+path,{headers:{'Content-Type':'application/json'},...opts});
+  return r.json();
+}
+
+// ── Load ──
+async function load(){
+  const{data}=await api('/buttons');
+  buttons=data||[];
+  render();
+}
+
+// ── Render List ──
+function render(){
+  const el=document.getElementById('list');
+  document.getElementById('count').textContent=`${buttons.length} botão(ões) configurados`;
+  if(!buttons.length){
+    el.innerHTML=`<div class="empty"><div class="icon">📭</div><div class="title">Nenhum botão criado</div><div class="sub">Clique em "+ Criar botão" para começar.</div></div>`;
+    return;
+  }
+  let html=`<div class="table-header"><span>AT.</span><span>TEXTO NO BOTÃO</span><span>AÇÃO</span><span>VISÍVEL</span><span style="text-align:right">OPÇÕES</span></div>`;
+  buttons.forEach((b,i)=>{
+    const actionLabel=b.action_type==='webhook'?'⚡ Webhook':b.action_type==='link'?'🔗 Link':'🪟 Modal';
+    const vis=!b.visible_to||!b.visible_to.length?'👁 Todos':`👤 ${b.visible_to.length}`;
+    html+=`<div class="table-row" onclick="openEditor(${i})">
+      <div><button class="toggle ${b.active!==false?'on':'off'}" onclick="event.stopPropagation();toggleBtn(${i})"><div class="dot"></div></button></div>
+      <div style="display:flex;align-items:center;gap:8px;min-width:0"><span style="font-size:16px;flex-shrink:0">${b.icon||'🔘'}</span><div style="min-width:0"><div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.label||'Sem nome'}</div>${b.description?`<div style="font-size:11px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.description}</div>`:''}</div></div>
+      <span style="font-size:12px;color:var(--sub)">${actionLabel}</span>
+      <span style="font-size:12px;color:var(--sub)">${vis}</span>
+      <div class="actions">
+        <button class="btn-icon" onclick="event.stopPropagation();openEditor(${i})" title="Editar">✏️</button>
+        <button class="btn-icon" onclick="event.stopPropagation();dupBtn(${i})" title="Duplicar">📋</button>
+        <button class="btn-icon" onclick="event.stopPropagation();delBtn(${i})" title="Excluir" style="color:var(--danger)">🗑️</button>
+      </div>
+    </div>`;
+  });
+  el.innerHTML=html;
+}
+
+// ── Toggle ──
+async function toggleBtn(i){
+  const b=buttons[i];b.active=b.active===false;
+  await api('/buttons/'+b.id,{method:'PUT',body:JSON.stringify(b)});
+  load();
+}
+
+// ── Duplicate ──
+async function dupBtn(i){
+  const clone={...buttons[i],id:undefined,label:(buttons[i].label||'')+' (cópia)'};
+  await api('/buttons',{method:'POST',body:JSON.stringify(clone)});
+  load();
+}
+
+// ── Delete ──
+async function delBtn(i){
+  if(!confirm('Excluir este botão?'))return;
+  await api('/buttons/'+buttons[i].id,{method:'DELETE'});
+  load();
+}
+
+// ── Editor ──
+function openEditor(idx){
+  editIdx=idx;
+  editBtn=idx===null?{label:'',icon:'🔘',description:'',action_type:'webhook',action_url:'',http_method:'POST',color:'#1f93ff',modal_html:'',new_tab:true,active:true,dynamic:false,single_use:false,visible_to:[],conditions:[],group_name:''}:{...buttons[idx],conditions:buttons[idx].conditions||[],visible_to:buttons[idx].visible_to||[]};
+  document.getElementById('modal-title').textContent=idx===null?'Criar botão':'Editar botão';
+  document.getElementById('modal-delete').innerHTML=idx!==null?`<button class="btn btn-danger" onclick="delBtn(${idx});closeEditor()">EXCLUIR</button>`:'';
+  activeTab='acoes';
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab==='acoes'));
+  renderTab();
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+
+function closeEditor(){document.getElementById('modal-overlay').classList.add('hidden')}
+
+function switchTab(tab){
+  syncForm();
+  activeTab=tab;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
+  renderTab();
+}
+
+function syncForm(){
+  if(!editBtn)return;
+  const v=id=>document.getElementById(id)?.value;
+  const c=id=>document.getElementById(id)?.checked;
+  if(activeTab==='acoes'){
+    editBtn.label=v('f-label')||editBtn.label;
+    editBtn.icon=v('f-icon')||editBtn.icon;
+    editBtn.description=v('f-desc')||'';
+    editBtn.action_type=v('f-action')||editBtn.action_type;
+    editBtn.action_url=v('f-url')||'';
+    editBtn.http_method=v('f-method')||'POST';
+    editBtn.color=v('f-color')||'#1f93ff';
+    editBtn.modal_html=v('f-modal')||'';
+    editBtn.new_tab=c('f-newtab')??true;
+  }
+  if(activeTab==='exibicao'){
+    editBtn.dynamic=c('f-dynamic')??false;
+    editBtn.single_use=c('f-single')??false;
+  }
+}
+
+function renderTab(){
+  const body=document.getElementById('modal-body');
+  if(activeTab==='acoes')renderAcoes(body);
+  else if(activeTab==='condicoes')renderCondicoes(body);
+  else renderExibicao(body);
+}
+
+function renderAcoes(body){
+  const b=editBtn;
+  body.innerHTML=`
+    <div class="form-row"><div class="form-group" style="flex:1"><label class="form-label">Texto no botão</label><input class="form-input" id="f-label" value="${b.label||''}" placeholder="Ex: Cadastro de Cliente"></div><div class="form-group" style="width:80px"><label class="form-label">Ícone</label><input class="form-input" id="f-icon" value="${b.icon||'🔘'}" style="text-align:center;font-size:18px" maxlength="4"></div></div>
+    <div class="form-group"><label class="form-label">Descrição</label><textarea class="form-textarea" id="f-desc" placeholder="Tooltip ao passar o mouse" rows="2">${b.description||''}</textarea></div>
+    <div class="form-group"><label class="form-label">Ação ao clicar</label><select class="form-select" id="f-action" onchange="renderActionFields()"><option value="webhook" ${b.action_type==='webhook'?'selected':''}>⚡ Enviar para Webhook (POST)</option><option value="link" ${b.action_type==='link'?'selected':''}>🔗 Seguir o link (abrir URL)</option><option value="modal" ${b.action_type==='modal'?'selected':''}>🪟 Abrir modal personalizado</option></select></div>
+    <div id="action-fields"></div>
+    <div class="form-group" style="display:flex;align-items:center;gap:12px;margin-top:14px"><label class="form-label" style="margin:0">Cor</label><input type="color" id="f-color" value="${b.color||'#1f93ff'}" style="width:36px;height:36px;border:1px solid var(--border);border-radius:8px;cursor:pointer;padding:2px"></div>
+  `;
+  renderActionFields();
+}
+
+function renderActionFields(){
+  const type=document.getElementById('f-action')?.value||editBtn.action_type;
+  const div=document.getElementById('action-fields');
+  const b=editBtn;
+  if(type==='webhook'){
+    div.innerHTML=`<div class="form-group"><label class="form-label">URL do Webhook</label><input class="form-input" id="f-url" value="${b.action_url||''}" placeholder="https://n8n.usebrk.com.br/webhook/..."></div><div class="form-group"><label class="form-label">Método</label><select class="form-select" id="f-method"><option value="POST" ${b.http_method!=='GET'?'selected':''}>POST</option><option value="GET" ${b.http_method==='GET'?'selected':''}>GET</option></select></div><div class="form-hint">Envia automaticamente o contexto da conversa (ID, contato, URL).</div>`;
+  }else if(type==='link'){
+    div.innerHTML=`<div class="form-group"><label class="form-label">URL</label><input class="form-input" id="f-url" value="${b.action_url||''}" placeholder="https://exemplo.com"></div><div class="checkbox-item"><input type="checkbox" id="f-newtab" ${b.new_tab!==false?'checked':''}><div><label for="f-newtab">Abrir em nova aba</label></div></div>`;
+  }else{
+    div.innerHTML=`<div class="form-group"><label class="form-label">HTML do modal</label><textarea class="form-textarea" id="f-modal" rows="4" style="font-family:monospace;font-size:12px" placeholder="<h3>Título</h3><p>Conteúdo</p>">${b.modal_html||''}</textarea></div>`;
+  }
+}
+
+function renderCondicoes(body){
+  const conds=editBtn.conditions||[];
+  let html=`<label class="form-label">Condições de exibição do botão</label><div class="form-hint" style="margin-bottom:16px">O botão só aparecerá se TODAS as condições forem atendidas. Sem condições = sempre visível.</div><div id="cond-list">`;
+  if(!conds.length)html+=`<div style="text-align:center;padding:20px;font-size:13px;color:var(--sub);background:var(--bg3);border-radius:8px;border:1px dashed var(--border)">Nenhuma condição</div>`;
+  conds.forEach((c,i)=>{
+    html+=`<div style="display:flex;gap:8px;align-items:center;padding:10px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);margin-bottom:6px">
+      <select class="form-select" style="width:auto" onchange="editBtn.conditions[${i}].field=this.value"><option value="label" ${c.field==='label'?'selected':''}>Etiqueta</option><option value="inbox" ${c.field==='inbox'?'selected':''}>Inbox</option><option value="team" ${c.field==='team'?'selected':''}>Time</option><option value="status" ${c.field==='status'?'selected':''}>Status</option></select>
+      <select class="form-select" style="width:auto" onchange="editBtn.conditions[${i}].op=this.value"><option value="equals" ${c.op==='equals'?'selected':''}>é igual a</option><option value="contains" ${c.op==='contains'?'selected':''}>contém</option><option value="not_equals" ${c.op==='not_equals'?'selected':''}>não é</option></select>
+      <input class="form-input" style="flex:1" value="${c.value||''}" placeholder="valor" onchange="editBtn.conditions[${i}].value=this.value">
+      <button class="btn-icon" style="color:var(--danger)" onclick="editBtn.conditions.splice(${i},1);renderTab()">✕</button>
+    </div>`;
+  });
+  html+=`</div><button class="btn btn-secondary" style="width:100%;margin-top:10px" onclick="editBtn.conditions.push({field:'label',op:'equals',value:''});renderTab()">+ Adicionar condição</button>`;
+  body.innerHTML=html;
+}
+
+function renderExibicao(body){
+  const b=editBtn;
+  let usersHTML='';
+  if(!b.visible_to||!b.visible_to.length)usersHTML=`<div style="text-align:center;padding:16px;font-size:12px;color:var(--sub);background:var(--bg3);border-radius:8px;border:1px dashed var(--border)">👁 Visível para todos</div>`;
+  else b.visible_to.forEach((email,i)=>{
+    usersHTML+=`<div class="user-item"><div style="display:flex;align-items:center;gap:8px"><div class="user-avatar">${email.substring(0,2).toUpperCase()}</div><span style="font-size:13px">${email}</span></div><button class="btn-icon" style="color:var(--danger)" onclick="editBtn.visible_to.splice(${i},1);renderTab()">✕</button></div>`;
+  });
+  body.innerHTML=`
+    <div class="checkbox-item" onclick="document.getElementById('f-dynamic').click()"><input type="checkbox" id="f-dynamic" ${b.dynamic?'checked':''} onchange="editBtn.dynamic=this.checked"><div><label>Botão dinâmico</label><div class="hint">Ocultado por padrão, aparece via triggers</div></div></div>
+    <div class="checkbox-item" onclick="document.getElementById('f-single').click()"><input type="checkbox" id="f-single" ${b.single_use?'checked':''} onchange="editBtn.single_use=this.checked"><div><label>Botão de uso único</label><div class="hint">Desativa após o primeiro clique</div></div></div>
+    <div style="margin-top:16px"><label class="form-label">Exibir para (vazio = todos)</label></div>
+    <div style="display:flex;gap:8px;margin-bottom:12px"><input class="form-input" id="f-email" placeholder="nome@usebrk.com.br" style="flex:1"><button class="btn btn-primary" onclick="addUser()">+ Adicionar</button></div>
+    <div id="users-list">${usersHTML}</div>
+  `;
+}
+
+function addUser(){
+  const inp=document.getElementById('f-email');
+  const v=inp.value.trim().toLowerCase();
+  if(v&&!editBtn.visible_to.includes(v)){editBtn.visible_to.push(v);inp.value='';renderTab()}
+}
+
+// ── Save ──
+async function saveButton(){
+  syncForm();
+  if(!editBtn.label?.trim())return alert('Preencha o texto do botão.');
+  if(editIdx===null){
+    await api('/buttons',{method:'POST',body:JSON.stringify(editBtn)});
+  }else{
+    await api('/buttons/'+editBtn.id,{method:'PUT',body:JSON.stringify(editBtn)});
+  }
+  closeEditor();
+  load();
+}
+
+// ── Start ──
+load();
+</script>
+</body>
+</html>
