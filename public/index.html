@@ -410,5 +410,56 @@ function saveButton() {
 // ── Start ──
 load();
 </script>
+ <script>
+    // =======================================================
+    // INTEGRAÇÃO: Transforma input de email em Dropdown do Chatwoot
+    // =======================================================
+    (function() {
+        var cachedAgents = [];
+        
+        // Pede a lista de agentes para o Chatwoot logo que abre
+        window.parent.postMessage({ action: 'GET_AGENTS' }, '*');
+        
+        // Quando o Chatwoot responder, guarda a lista e popula o select
+        window.addEventListener('message', function(e) {
+            if (e.data && e.data.action === 'SET_AGENTS') {
+                cachedAgents = e.data.agents || [];
+                populateSelect();
+            }
+        });
+
+        function populateSelect() {
+            var select = document.querySelector('select[data-chatwoot-agents="true"]');
+            // Só popula se já tiver agentes carregados e o select estiver vazio
+            if (select && cachedAgents.length > 0 && select.options.length <= 1) {
+                var options = '<option value="">Selecione um usuário...</option>';
+                cachedAgents.forEach(function(a) {
+                    options += '<option value="' + a.email + '">' + a.name + ' (' + a.email + ')</option>';
+                });
+                select.innerHTML = options;
+            }
+        }
+
+        // Fica de olho na tela: sempre que o Modal abrir, injeta o Select no lugar do Input
+        var observer = new MutationObserver(function() {
+            var oldInput = document.querySelector('input[placeholder="nome@usebrk.com.br"]');
+            if (oldInput && oldInput.tagName === 'INPUT') {
+                var select = document.createElement('select');
+                select.id = oldInput.id; 
+                select.className = oldInput.className;
+                select.style.cssText = oldInput.style.cssText;
+                select.style.appearance = 'auto'; // Mostra a setinha nativa do menu
+                select.style.cursor = 'pointer';
+                select.setAttribute('data-chatwoot-agents', 'true');
+                select.innerHTML = '<option value="">Carregando usuários do Chatwoot...</option>';
+                
+                // Troca um pelo outro
+                oldInput.parentNode.replaceChild(select, oldInput);
+                populateSelect();
+            }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+    })();
+    </script>
 </body>
 </html>
