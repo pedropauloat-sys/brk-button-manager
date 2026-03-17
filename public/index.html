@@ -110,7 +110,7 @@ let editIdx=null;
 let activeTab='acoes';
 
 // ── API ──
-async function api(path,opts={}){
+async function api(path,opts){   if(!opts)opts={};
   const r=await fetch(API+path,{headers:{'Content-Type':'application/json'},...opts});
   return r.json();
 }
