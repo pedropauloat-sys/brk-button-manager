@@ -10,20 +10,17 @@
   .container{max-width:900px;margin:0 auto;padding:24px}
   .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
   .header h1{font-size:20px;display:flex;align-items:center;gap:10px}
-  .header h1 span{font-size:24px}
+  .header h1 em{font-size:24px;font-style:normal}
   .badge{font-size:11px;background:var(--bg3);padding:2px 8px;border-radius:10px;color:var(--sub)}
   .btn{border:none;border-radius:8px;padding:10px 20px;font:600 13px -apple-system,system-ui,sans-serif;cursor:pointer;transition:all .15s}
   .btn-primary{background:var(--accent);color:#fff}
   .btn-primary:hover{opacity:.9}
   .btn-secondary{background:transparent;border:1px solid var(--border);color:var(--text)}
   .btn-danger{background:transparent;color:var(--danger);border:1px solid var(--danger)}
-  .btn-success{background:var(--success);color:#fff}
   .empty{text-align:center;padding:60px 20px}
   .empty .icon{font-size:48px;margin-bottom:12px}
   .empty .title{font-size:16px;font-weight:600;margin-bottom:6px}
   .empty .sub{font-size:13px;color:var(--sub)}
-
-  /* Table */
   .table-header{display:grid;grid-template-columns:50px 1fr 120px 100px 90px;gap:12px;padding:8px 14px;font-size:11px;font-weight:600;color:var(--sub);text-transform:uppercase;letter-spacing:.04em}
   .table-row{display:grid;grid-template-columns:50px 1fr 120px 100px 90px;gap:12px;padding:12px 14px;border-radius:8px;background:var(--bg3);border:1px solid var(--border);margin-bottom:6px;align-items:center;cursor:pointer;transition:background .15s}
   .table-row:hover{background:var(--bg2)}
@@ -36,21 +33,15 @@
   .btn-icon{width:28px;height:28px;border:none;background:transparent;cursor:pointer;border-radius:6px;font-size:14px;display:flex;align-items:center;justify-content:center;transition:background .15s;color:var(--sub)}
   .btn-icon:hover{background:rgba(255,255,255,.08)}
   .actions{display:flex;gap:2px;justify-content:flex-end}
-
-  /* Modal */
   .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px}
   .modal{background:var(--bg);border-radius:12px;width:560px;max-width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.6);overflow:hidden}
   .modal-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:var(--bg2);flex-shrink:0}
   .modal-header h2{font-size:16px}
   .modal-body{flex:1;overflow-y:auto;padding:20px}
   .modal-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:var(--bg2);flex-shrink:0}
-
-  /* Tabs */
   .tabs{display:flex;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0}
   .tab{border:none;background:transparent;padding:10px 20px;font:600 13px -apple-system,system-ui,sans-serif;color:var(--sub);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
   .tab.active{color:var(--accent);border-bottom-color:var(--accent)}
-
-  /* Form */
   .form-group{margin-bottom:14px}
   .form-label{display:block;font-size:11px;font-weight:600;color:var(--sub);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
   .form-input,.form-select,.form-textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--input);color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border-color .2s,box-shadow .2s}
@@ -70,229 +61,350 @@
 <body>
 <div class="container">
   <div class="header">
-    <h1><span>⚡</span> BRK Button Manager <span class="badge">v1.0</span></h1>
-    <button class="btn btn-primary" onclick="openEditor(null)">+ Criar botão</button>
+    <h1><em>⚡</em> BRK Button Manager <span class="badge">v1.0</span></h1>
+    <button class="btn btn-primary" id="btn-criar">+ Criar botão</button>
   </div>
   <div id="list"></div>
-  <div id="footer-bar" style="margin-top:12px;display:flex;justify-content:space-between;align-items:center">
+  <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center">
     <span class="footer-count" id="count"></span>
   </div>
 </div>
 
-<!-- Modal Editor -->
-<div id="modal-overlay" class="modal-overlay hidden" onclick="if(event.target===this)closeEditor()">
+<div id="modal-overlay" class="modal-overlay hidden">
   <div class="modal">
     <div class="modal-header">
       <h2 id="modal-title">Criar botão</h2>
-      <button class="btn-icon" onclick="closeEditor()" style="font-size:18px">✕</button>
+      <button class="btn-icon" id="btn-close-modal" style="font-size:18px">✕</button>
     </div>
-    <div class="tabs">
-      <button class="tab active" data-tab="acoes" onclick="switchTab('acoes')">Ações</button>
-      <button class="tab" data-tab="condicoes" onclick="switchTab('condicoes')">Condições</button>
-      <button class="tab" data-tab="exibicao" onclick="switchTab('exibicao')">Exibição</button>
-    </div>
+    <div class="tabs" id="tabs-bar"></div>
     <div class="modal-body" id="modal-body"></div>
     <div class="modal-footer">
       <div id="modal-delete"></div>
       <div style="display:flex;gap:10px">
-        <button class="btn btn-secondary" onclick="closeEditor()">Cancelar</button>
-        <button class="btn btn-primary" onclick="saveButton()">Salvar</button>
+        <button class="btn btn-secondary" id="btn-cancel">Cancelar</button>
+        <button class="btn btn-primary" id="btn-save">Salvar</button>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-const API='https://n8n-brk-buttons.pqcilq.easypanel.host/api';='/api';
-let buttons=[];
-let editBtn=null;
-let editIdx=null;
-let activeTab='acoes';
+var API_URL = 'https://n8n-brk-buttons.pqcilq.easypanel.host/api';
+var buttons = [];
+var editBtn = null;
+var editIdx = null;
+var activeTab = 'acoes';
+
+// ── Event listeners ──
+document.getElementById('btn-criar').addEventListener('click', function(){ openEditor(null); });
+document.getElementById('btn-close-modal').addEventListener('click', closeEditor);
+document.getElementById('btn-cancel').addEventListener('click', closeEditor);
+document.getElementById('btn-save').addEventListener('click', saveButton);
+document.getElementById('modal-overlay').addEventListener('click', function(e){ if(e.target===this) closeEditor(); });
 
 // ── API ──
-async function api(path,opts){   if(!opts)opts={};
-  const r=await fetch(API+path,{headers:{'Content-Type':'application/json'},...opts});
-  return r.json();
+function api(path, method, body) {
+  var opts = { method: method || 'GET', headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  return fetch(API_URL + path, opts).then(function(r){ return r.json(); });
 }
 
 // ── Load ──
-async function load(){
-  const{data}=await api('/buttons');
-  buttons=data||[];
-  render();
+function load() {
+  api('/buttons', 'GET').then(function(res) {
+    buttons = res.data || [];
+    render();
+  }).catch(function(err) {
+    console.error('Load error:', err);
+    buttons = [];
+    render();
+  });
 }
 
 // ── Render List ──
-function render(){
-  const el=document.getElementById('list');
-  document.getElementById('count').textContent=`${buttons.length} botão(ões) configurados`;
-  if(!buttons.length){
-    el.innerHTML=`<div class="empty"><div class="icon">📭</div><div class="title">Nenhum botão criado</div><div class="sub">Clique em "+ Criar botão" para começar.</div></div>`;
+function render() {
+  var el = document.getElementById('list');
+  document.getElementById('count').textContent = buttons.length + ' botão(ões) configurados';
+
+  if (!buttons.length) {
+    el.innerHTML = '<div class="empty"><div class="icon">📭</div><div class="title">Nenhum botão criado</div><div class="sub">Clique em "+ Criar botão" para começar.</div></div>';
     return;
   }
-  let html=`<div class="table-header"><span>AT.</span><span>TEXTO NO BOTÃO</span><span>AÇÃO</span><span>VISÍVEL</span><span style="text-align:right">OPÇÕES</span></div>`;
-  buttons.forEach((b,i)=>{
-    const actionLabel=b.action_type==='webhook'?'⚡ Webhook':b.action_type==='link'?'🔗 Link':'🪟 Modal';
-    const vis=!b.visible_to||!b.visible_to.length?'👁 Todos':`👤 ${b.visible_to.length}`;
-    html+=`<div class="table-row" onclick="openEditor(${i})">
-      <div><button class="toggle ${b.active!==false?'on':'off'}" onclick="event.stopPropagation();toggleBtn(${i})"><div class="dot"></div></button></div>
-      <div style="display:flex;align-items:center;gap:8px;min-width:0"><span style="font-size:16px;flex-shrink:0">${b.icon||'🔘'}</span><div style="min-width:0"><div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.label||'Sem nome'}</div>${b.description?`<div style="font-size:11px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.description}</div>`:''}</div></div>
-      <span style="font-size:12px;color:var(--sub)">${actionLabel}</span>
-      <span style="font-size:12px;color:var(--sub)">${vis}</span>
-      <div class="actions">
-        <button class="btn-icon" onclick="event.stopPropagation();openEditor(${i})" title="Editar">✏️</button>
-        <button class="btn-icon" onclick="event.stopPropagation();dupBtn(${i})" title="Duplicar">📋</button>
-        <button class="btn-icon" onclick="event.stopPropagation();delBtn(${i})" title="Excluir" style="color:var(--danger)">🗑️</button>
-      </div>
-    </div>`;
+
+  var html = '<div class="table-header"><span>AT.</span><span>TEXTO NO BOTÃO</span><span>AÇÃO</span><span>VISÍVEL</span><span style="text-align:right">OPÇÕES</span></div>';
+
+  for (var i = 0; i < buttons.length; i++) {
+    var b = buttons[i];
+    var actionLabel = b.action_type === 'webhook' ? '⚡ Webhook' : b.action_type === 'link' ? '🔗 Link' : '🪟 Modal';
+    var vis = !b.visible_to || !b.visible_to.length ? '👁 Todos' : '👤 ' + b.visible_to.length;
+    var desc = b.description ? '<div style="font-size:11px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + b.description + '</div>' : '';
+
+    html += '<div class="table-row" data-edit="' + i + '">' +
+      '<div><button class="toggle ' + (b.active !== false ? 'on' : 'off') + '" data-toggle="' + i + '"><div class="dot"></div></button></div>' +
+      '<div style="display:flex;align-items:center;gap:8px;min-width:0"><span style="font-size:16px;flex-shrink:0">' + (b.icon || '🔘') + '</span><div style="min-width:0"><div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (b.label || 'Sem nome') + '</div>' + desc + '</div></div>' +
+      '<span style="font-size:12px;color:var(--sub)">' + actionLabel + '</span>' +
+      '<span style="font-size:12px;color:var(--sub)">' + vis + '</span>' +
+      '<div class="actions">' +
+        '<button class="btn-icon" data-edit-btn="' + i + '" title="Editar">✏️</button>' +
+        '<button class="btn-icon" data-dup="' + i + '" title="Duplicar">📋</button>' +
+        '<button class="btn-icon" data-del="' + i + '" title="Excluir" style="color:var(--danger)">🗑️</button>' +
+      '</div>' +
+    '</div>';
+  }
+
+  el.innerHTML = html;
+
+  // Bind events via delegation
+  el.addEventListener('click', function(e) {
+    var target = e.target.closest('[data-toggle]');
+    if (target) { e.stopPropagation(); toggleBtn(parseInt(target.getAttribute('data-toggle'))); return; }
+    target = e.target.closest('[data-dup]');
+    if (target) { e.stopPropagation(); dupBtn(parseInt(target.getAttribute('data-dup'))); return; }
+    target = e.target.closest('[data-del]');
+    if (target) { e.stopPropagation(); delBtn(parseInt(target.getAttribute('data-del'))); return; }
+    target = e.target.closest('[data-edit-btn]');
+    if (target) { e.stopPropagation(); openEditor(parseInt(target.getAttribute('data-edit-btn'))); return; }
+    target = e.target.closest('[data-edit]');
+    if (target) { openEditor(parseInt(target.getAttribute('data-edit'))); }
   });
-  el.innerHTML=html;
 }
 
 // ── Toggle ──
-async function toggleBtn(i){
-  const b=buttons[i];b.active=b.active===false;
-  await api('/buttons/'+b.id,{method:'PUT',body:JSON.stringify(b)});
-  load();
+function toggleBtn(i) {
+  var b = buttons[i];
+  b.active = (b.active === false) ? true : false;
+  api('/buttons/' + b.id, 'PUT', b).then(load);
 }
 
 // ── Duplicate ──
-async function dupBtn(i){
-  const clone={...buttons[i],id:undefined,label:(buttons[i].label||'')+' (cópia)'};
-  await api('/buttons',{method:'POST',body:JSON.stringify(clone)});
-  load();
+function dupBtn(i) {
+  var clone = JSON.parse(JSON.stringify(buttons[i]));
+  delete clone.id;
+  clone.label = (clone.label || '') + ' (cópia)';
+  api('/buttons', 'POST', clone).then(load);
 }
 
 // ── Delete ──
-async function delBtn(i){
-  if(!confirm('Excluir este botão?'))return;
-  await api('/buttons/'+buttons[i].id,{method:'DELETE'});
-  load();
+function delBtn(i) {
+  if (!confirm('Excluir este botão?')) return;
+  api('/buttons/' + buttons[i].id, 'DELETE').then(load);
 }
 
 // ── Editor ──
-function openEditor(idx){
-  editIdx=idx;
-  editBtn=idx===null?{label:'',icon:'🔘',description:'',action_type:'webhook',action_url:'',http_method:'POST',color:'#1f93ff',modal_html:'',new_tab:true,active:true,dynamic:false,single_use:false,visible_to:[],conditions:[],group_name:''}:{...buttons[idx],conditions:buttons[idx].conditions||[],visible_to:buttons[idx].visible_to||[]};
-  document.getElementById('modal-title').textContent=idx===null?'Criar botão':'Editar botão';
-  document.getElementById('modal-delete').innerHTML=idx!==null?`<button class="btn btn-danger" onclick="delBtn(${idx});closeEditor()">EXCLUIR</button>`:'';
-  activeTab='acoes';
-  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab==='acoes'));
+function openEditor(idx) {
+  editIdx = idx;
+  if (idx === null) {
+    editBtn = { label:'', icon:'🔘', description:'', action_type:'webhook', action_url:'', http_method:'POST', color:'#1f93ff', modal_html:'', new_tab:true, active:true, dynamic:false, single_use:false, visible_to:[], conditions:[], group_name:'' };
+  } else {
+    editBtn = JSON.parse(JSON.stringify(buttons[idx]));
+    if (!editBtn.conditions) editBtn.conditions = [];
+    if (!editBtn.visible_to) editBtn.visible_to = [];
+  }
+
+  document.getElementById('modal-title').textContent = idx === null ? 'Criar botão' : 'Editar botão';
+  document.getElementById('modal-delete').innerHTML = idx !== null ? '<button class="btn btn-danger" id="btn-del-editor">EXCLUIR</button>' : '';
+
+  if (idx !== null) {
+    var delEditorBtn = document.getElementById('btn-del-editor');
+    if (delEditorBtn) delEditorBtn.addEventListener('click', function(){ delBtn(idx); closeEditor(); });
+  }
+
+  activeTab = 'acoes';
+  renderTabs();
   renderTab();
   document.getElementById('modal-overlay').classList.remove('hidden');
 }
 
-function closeEditor(){document.getElementById('modal-overlay').classList.add('hidden')}
-
-function switchTab(tab){
-  syncForm();
-  activeTab=tab;
-  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
-  renderTab();
+function closeEditor() {
+  document.getElementById('modal-overlay').classList.add('hidden');
 }
 
-function syncForm(){
-  if(!editBtn)return;
-  const v=id=>document.getElementById(id)?.value;
-  const c=id=>document.getElementById(id)?.checked;
-  if(activeTab==='acoes'){
-    editBtn.label=v('f-label')||editBtn.label;
-    editBtn.icon=v('f-icon')||editBtn.icon;
-    editBtn.description=v('f-desc')||'';
-    editBtn.action_type=v('f-action')||editBtn.action_type;
-    editBtn.action_url=v('f-url')||'';
-    editBtn.http_method=v('f-method')||'POST';
-    editBtn.color=v('f-color')||'#1f93ff';
-    editBtn.modal_html=v('f-modal')||'';
-    editBtn.new_tab=c('f-newtab')??true;
-  }
-  if(activeTab==='exibicao'){
-    editBtn.dynamic=c('f-dynamic')??false;
-    editBtn.single_use=c('f-single')??false;
+function renderTabs() {
+  var tabs = [
+    { key: 'acoes', label: 'Ações' },
+    { key: 'condicoes', label: 'Condições' },
+    { key: 'exibicao', label: 'Exibição' }
+  ];
+  var bar = document.getElementById('tabs-bar');
+  bar.innerHTML = '';
+  for (var i = 0; i < tabs.length; i++) {
+    var t = tabs[i];
+    var btn = document.createElement('button');
+    btn.className = 'tab' + (activeTab === t.key ? ' active' : '');
+    btn.textContent = t.label;
+    btn.setAttribute('data-tab', t.key);
+    btn.addEventListener('click', function(e) {
+      syncForm();
+      activeTab = e.target.getAttribute('data-tab');
+      renderTabs();
+      renderTab();
+    });
+    bar.appendChild(btn);
   }
 }
 
-function renderTab(){
-  const body=document.getElementById('modal-body');
-  if(activeTab==='acoes')renderAcoes(body);
-  else if(activeTab==='condicoes')renderCondicoes(body);
+function syncForm() {
+  if (!editBtn) return;
+  function v(id) { var el = document.getElementById(id); return el ? el.value : ''; }
+  function c(id) { var el = document.getElementById(id); return el ? el.checked : false; }
+
+  if (activeTab === 'acoes') {
+    editBtn.label = v('f-label') || editBtn.label;
+    editBtn.icon = v('f-icon') || editBtn.icon;
+    editBtn.description = v('f-desc') || '';
+    editBtn.action_type = v('f-action') || editBtn.action_type;
+    editBtn.action_url = v('f-url') || '';
+    editBtn.http_method = v('f-method') || 'POST';
+    editBtn.color = v('f-color') || '#1f93ff';
+    editBtn.modal_html = v('f-modal') || '';
+    editBtn.new_tab = c('f-newtab');
+  }
+  if (activeTab === 'exibicao') {
+    editBtn.dynamic = c('f-dynamic');
+    editBtn.single_use = c('f-single');
+  }
+}
+
+function renderTab() {
+  var body = document.getElementById('modal-body');
+  if (activeTab === 'acoes') renderAcoes(body);
+  else if (activeTab === 'condicoes') renderCondicoes(body);
   else renderExibicao(body);
 }
 
-function renderAcoes(body){
-  const b=editBtn;
-  body.innerHTML=`
-    <div class="form-row"><div class="form-group" style="flex:1"><label class="form-label">Texto no botão</label><input class="form-input" id="f-label" value="${b.label||''}" placeholder="Ex: Cadastro de Cliente"></div><div class="form-group" style="width:80px"><label class="form-label">Ícone</label><input class="form-input" id="f-icon" value="${b.icon||'🔘'}" style="text-align:center;font-size:18px" maxlength="4"></div></div>
-    <div class="form-group"><label class="form-label">Descrição</label><textarea class="form-textarea" id="f-desc" placeholder="Tooltip ao passar o mouse" rows="2">${b.description||''}</textarea></div>
-    <div class="form-group"><label class="form-label">Ação ao clicar</label><select class="form-select" id="f-action" onchange="renderActionFields()"><option value="webhook" ${b.action_type==='webhook'?'selected':''}>⚡ Enviar para Webhook (POST)</option><option value="link" ${b.action_type==='link'?'selected':''}>🔗 Seguir o link (abrir URL)</option><option value="modal" ${b.action_type==='modal'?'selected':''}>🪟 Abrir modal personalizado</option></select></div>
-    <div id="action-fields"></div>
-    <div class="form-group" style="display:flex;align-items:center;gap:12px;margin-top:14px"><label class="form-label" style="margin:0">Cor</label><input type="color" id="f-color" value="${b.color||'#1f93ff'}" style="width:36px;height:36px;border:1px solid var(--border);border-radius:8px;cursor:pointer;padding:2px"></div>
-  `;
+// ── Aba Ações ──
+function renderAcoes(body) {
+  var b = editBtn;
+  body.innerHTML =
+    '<div class="form-row"><div class="form-group" style="flex:1"><label class="form-label">Texto no botão</label><input class="form-input" id="f-label" value="' + (b.label||'') + '" placeholder="Ex: Cadastro de Cliente"></div><div class="form-group" style="width:80px"><label class="form-label">Ícone</label><input class="form-input" id="f-icon" value="' + (b.icon||'🔘') + '" style="text-align:center;font-size:18px" maxlength="4"></div></div>' +
+    '<div class="form-group"><label class="form-label">Descrição</label><textarea class="form-textarea" id="f-desc" placeholder="Tooltip ao passar o mouse" rows="2">' + (b.description||'') + '</textarea></div>' +
+    '<div class="form-group"><label class="form-label">Ação ao clicar</label><select class="form-select" id="f-action"><option value="webhook"' + (b.action_type==='webhook'?' selected':'') + '>⚡ Enviar para Webhook (POST)</option><option value="link"' + (b.action_type==='link'?' selected':'') + '>🔗 Seguir o link (abrir URL)</option><option value="modal"' + (b.action_type==='modal'?' selected':'') + '>🪟 Abrir modal personalizado</option></select></div>' +
+    '<div id="action-fields"></div>' +
+    '<div class="form-group" style="display:flex;align-items:center;gap:12px;margin-top:14px"><label class="form-label" style="margin:0">Cor</label><input type="color" id="f-color" value="' + (b.color||'#1f93ff') + '" style="width:36px;height:36px;border:1px solid var(--border);border-radius:8px;cursor:pointer;padding:2px"></div>';
+
+  document.getElementById('f-action').addEventListener('change', renderActionFields);
   renderActionFields();
 }
 
-function renderActionFields(){
-  const type=document.getElementById('f-action')?.value||editBtn.action_type;
-  const div=document.getElementById('action-fields');
-  const b=editBtn;
-  if(type==='webhook'){
-    div.innerHTML=`<div class="form-group"><label class="form-label">URL do Webhook</label><input class="form-input" id="f-url" value="${b.action_url||''}" placeholder="https://n8n.usebrk.com.br/webhook/..."></div><div class="form-group"><label class="form-label">Método</label><select class="form-select" id="f-method"><option value="POST" ${b.http_method!=='GET'?'selected':''}>POST</option><option value="GET" ${b.http_method==='GET'?'selected':''}>GET</option></select></div><div class="form-hint">Envia automaticamente o contexto da conversa (ID, contato, URL).</div>`;
-  }else if(type==='link'){
-    div.innerHTML=`<div class="form-group"><label class="form-label">URL</label><input class="form-input" id="f-url" value="${b.action_url||''}" placeholder="https://exemplo.com"></div><div class="checkbox-item"><input type="checkbox" id="f-newtab" ${b.new_tab!==false?'checked':''}><div><label for="f-newtab">Abrir em nova aba</label></div></div>`;
-  }else{
-    div.innerHTML=`<div class="form-group"><label class="form-label">HTML do modal</label><textarea class="form-textarea" id="f-modal" rows="4" style="font-family:monospace;font-size:12px" placeholder="<h3>Título</h3><p>Conteúdo</p>">${b.modal_html||''}</textarea></div>`;
+function renderActionFields() {
+  var type = document.getElementById('f-action') ? document.getElementById('f-action').value : editBtn.action_type;
+  var div = document.getElementById('action-fields');
+  var b = editBtn;
+
+  if (type === 'webhook') {
+    div.innerHTML =
+      '<div class="form-group"><label class="form-label">URL do Webhook</label><input class="form-input" id="f-url" value="' + (b.action_url||'') + '" placeholder="https://n8n.usebrk.com.br/webhook/..."></div>' +
+      '<div class="form-group"><label class="form-label">Método</label><select class="form-select" id="f-method"><option value="POST"' + (b.http_method!=='GET'?' selected':'') + '>POST</option><option value="GET"' + (b.http_method==='GET'?' selected':'') + '>GET</option></select></div>' +
+      '<div class="form-hint">Envia automaticamente o contexto da conversa (ID, contato, URL).</div>';
+  } else if (type === 'link') {
+    div.innerHTML =
+      '<div class="form-group"><label class="form-label">URL</label><input class="form-input" id="f-url" value="' + (b.action_url||'') + '" placeholder="https://exemplo.com"></div>' +
+      '<div class="checkbox-item"><input type="checkbox" id="f-newtab"' + (b.new_tab!==false?' checked':'') + '><div><label for="f-newtab">Abrir em nova aba</label></div></div>';
+  } else {
+    div.innerHTML =
+      '<div class="form-group"><label class="form-label">HTML do modal</label><textarea class="form-textarea" id="f-modal" rows="4" style="font-family:monospace;font-size:12px" placeholder="<h3>Título</h3><p>Conteúdo</p>">' + (b.modal_html||'') + '</textarea></div>';
   }
 }
 
-function renderCondicoes(body){
-  const conds=editBtn.conditions||[];
-  let html=`<label class="form-label">Condições de exibição do botão</label><div class="form-hint" style="margin-bottom:16px">O botão só aparecerá se TODAS as condições forem atendidas. Sem condições = sempre visível.</div><div id="cond-list">`;
-  if(!conds.length)html+=`<div style="text-align:center;padding:20px;font-size:13px;color:var(--sub);background:var(--bg3);border-radius:8px;border:1px dashed var(--border)">Nenhuma condição</div>`;
-  conds.forEach((c,i)=>{
-    html+=`<div style="display:flex;gap:8px;align-items:center;padding:10px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);margin-bottom:6px">
-      <select class="form-select" style="width:auto" onchange="editBtn.conditions[${i}].field=this.value"><option value="label" ${c.field==='label'?'selected':''}>Etiqueta</option><option value="inbox" ${c.field==='inbox'?'selected':''}>Inbox</option><option value="team" ${c.field==='team'?'selected':''}>Time</option><option value="status" ${c.field==='status'?'selected':''}>Status</option></select>
-      <select class="form-select" style="width:auto" onchange="editBtn.conditions[${i}].op=this.value"><option value="equals" ${c.op==='equals'?'selected':''}>é igual a</option><option value="contains" ${c.op==='contains'?'selected':''}>contém</option><option value="not_equals" ${c.op==='not_equals'?'selected':''}>não é</option></select>
-      <input class="form-input" style="flex:1" value="${c.value||''}" placeholder="valor" onchange="editBtn.conditions[${i}].value=this.value">
-      <button class="btn-icon" style="color:var(--danger)" onclick="editBtn.conditions.splice(${i},1);renderTab()">✕</button>
-    </div>`;
+// ── Aba Condições ──
+function renderCondicoes(body) {
+  var conds = editBtn.conditions || [];
+  var html =
+    '<label class="form-label">Condições de exibição do botão</label>' +
+    '<div class="form-hint" style="margin-bottom:16px">O botão só aparecerá se TODAS as condições forem atendidas. Sem condições = sempre visível.</div>' +
+    '<div id="cond-list">';
+
+  if (!conds.length) {
+    html += '<div style="text-align:center;padding:20px;font-size:13px;color:var(--sub);background:var(--bg3);border-radius:8px;border:1px dashed var(--border)">Nenhuma condição</div>';
+  }
+
+  for (var i = 0; i < conds.length; i++) {
+    var c = conds[i];
+    html += '<div style="display:flex;gap:8px;align-items:center;padding:10px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);margin-bottom:6px">' +
+      '<select class="form-select" style="width:auto" data-cond-field="' + i + '"><option value="label"' + (c.field==='label'?' selected':'') + '>Etiqueta</option><option value="inbox"' + (c.field==='inbox'?' selected':'') + '>Inbox</option><option value="team"' + (c.field==='team'?' selected':'') + '>Time</option><option value="status"' + (c.field==='status'?' selected':'') + '>Status</option></select>' +
+      '<select class="form-select" style="width:auto" data-cond-op="' + i + '"><option value="equals"' + (c.op==='equals'?' selected':'') + '>é igual a</option><option value="contains"' + (c.op==='contains'?' selected':'') + '>contém</option><option value="not_equals"' + (c.op==='not_equals'?' selected':'') + '>não é</option></select>' +
+      '<input class="form-input" style="flex:1" value="' + (c.value||'') + '" placeholder="valor" data-cond-val="' + i + '">' +
+      '<button class="btn-icon" style="color:var(--danger)" data-cond-del="' + i + '">✕</button>' +
+    '</div>';
+  }
+
+  html += '</div><button class="btn btn-secondary" style="width:100%;margin-top:10px" id="btn-add-cond">+ Adicionar condição</button>';
+  body.innerHTML = html;
+
+  // Bind events
+  body.addEventListener('change', function(e) {
+    var t = e.target;
+    if (t.hasAttribute('data-cond-field')) editBtn.conditions[parseInt(t.getAttribute('data-cond-field'))].field = t.value;
+    if (t.hasAttribute('data-cond-op')) editBtn.conditions[parseInt(t.getAttribute('data-cond-op'))].op = t.value;
+    if (t.hasAttribute('data-cond-val')) editBtn.conditions[parseInt(t.getAttribute('data-cond-val'))].value = t.value;
   });
-  html+=`</div><button class="btn btn-secondary" style="width:100%;margin-top:10px" onclick="editBtn.conditions.push({field:'label',op:'equals',value:''});renderTab()">+ Adicionar condição</button>`;
-  body.innerHTML=html;
+  body.addEventListener('click', function(e) {
+    var t = e.target.closest('[data-cond-del]');
+    if (t) { editBtn.conditions.splice(parseInt(t.getAttribute('data-cond-del')), 1); renderTab(); }
+  });
+  var addBtn = document.getElementById('btn-add-cond');
+  if (addBtn) addBtn.addEventListener('click', function() { editBtn.conditions.push({field:'label',op:'equals',value:''}); renderTab(); });
 }
 
-function renderExibicao(body){
-  const b=editBtn;
-  let usersHTML='';
-  if(!b.visible_to||!b.visible_to.length)usersHTML=`<div style="text-align:center;padding:16px;font-size:12px;color:var(--sub);background:var(--bg3);border-radius:8px;border:1px dashed var(--border)">👁 Visível para todos</div>`;
-  else b.visible_to.forEach((email,i)=>{
-    usersHTML+=`<div class="user-item"><div style="display:flex;align-items:center;gap:8px"><div class="user-avatar">${email.substring(0,2).toUpperCase()}</div><span style="font-size:13px">${email}</span></div><button class="btn-icon" style="color:var(--danger)" onclick="editBtn.visible_to.splice(${i},1);renderTab()">✕</button></div>`;
-  });
-  body.innerHTML=`
-    <div class="checkbox-item" onclick="document.getElementById('f-dynamic').click()"><input type="checkbox" id="f-dynamic" ${b.dynamic?'checked':''} onchange="editBtn.dynamic=this.checked"><div><label>Botão dinâmico</label><div class="hint">Ocultado por padrão, aparece via triggers</div></div></div>
-    <div class="checkbox-item" onclick="document.getElementById('f-single').click()"><input type="checkbox" id="f-single" ${b.single_use?'checked':''} onchange="editBtn.single_use=this.checked"><div><label>Botão de uso único</label><div class="hint">Desativa após o primeiro clique</div></div></div>
-    <div style="margin-top:16px"><label class="form-label">Exibir para (vazio = todos)</label></div>
-    <div style="display:flex;gap:8px;margin-bottom:12px"><input class="form-input" id="f-email" placeholder="nome@usebrk.com.br" style="flex:1"><button class="btn btn-primary" onclick="addUser()">+ Adicionar</button></div>
-    <div id="users-list">${usersHTML}</div>
-  `;
-}
+// ── Aba Exibição ──
+function renderExibicao(body) {
+  var b = editBtn;
+  var usersHTML = '';
 
-function addUser(){
-  const inp=document.getElementById('f-email');
-  const v=inp.value.trim().toLowerCase();
-  if(v&&!editBtn.visible_to.includes(v)){editBtn.visible_to.push(v);inp.value='';renderTab()}
+  if (!b.visible_to || !b.visible_to.length) {
+    usersHTML = '<div style="text-align:center;padding:16px;font-size:12px;color:var(--sub);background:var(--bg3);border-radius:8px;border:1px dashed var(--border)">👁 Visível para todos</div>';
+  } else {
+    for (var i = 0; i < b.visible_to.length; i++) {
+      var email = b.visible_to[i];
+      usersHTML += '<div class="user-item"><div style="display:flex;align-items:center;gap:8px"><div class="user-avatar">' + email.substring(0,2).toUpperCase() + '</div><span style="font-size:13px">' + email + '</span></div><button class="btn-icon" style="color:var(--danger)" data-user-del="' + i + '">✕</button></div>';
+    }
+  }
+
+  body.innerHTML =
+    '<div class="checkbox-item"><input type="checkbox" id="f-dynamic"' + (b.dynamic?' checked':'') + '><div><label for="f-dynamic">Botão dinâmico</label><div class="hint">Ocultado por padrão, aparece via triggers</div></div></div>' +
+    '<div class="checkbox-item"><input type="checkbox" id="f-single"' + (b.single_use?' checked':'') + '><div><label for="f-single">Botão de uso único</label><div class="hint">Desativa após o primeiro clique</div></div></div>' +
+    '<div style="margin-top:16px"><label class="form-label">Exibir para (vazio = todos)</label></div>' +
+    '<div style="display:flex;gap:8px;margin-bottom:12px"><input class="form-input" id="f-email" placeholder="nome@usebrk.com.br" style="flex:1"><button class="btn btn-primary" id="btn-add-user">+ Adicionar</button></div>' +
+    '<div id="users-list">' + usersHTML + '</div>';
+
+  var addUserBtn = document.getElementById('btn-add-user');
+  if (addUserBtn) addUserBtn.addEventListener('click', function() {
+    var inp = document.getElementById('f-email');
+    var val = inp.value.trim().toLowerCase();
+    if (val && editBtn.visible_to.indexOf(val) === -1) {
+      editBtn.visible_to.push(val);
+      inp.value = '';
+      renderTab();
+    }
+  });
+
+  body.addEventListener('click', function(e) {
+    var t = e.target.closest('[data-user-del]');
+    if (t) { editBtn.visible_to.splice(parseInt(t.getAttribute('data-user-del')), 1); renderTab(); }
+  });
 }
 
 // ── Save ──
-async function saveButton(){
+function saveButton() {
   syncForm();
-  if(!editBtn.label?.trim())return alert('Preencha o texto do botão.');
-  if(editIdx===null){
-    await api('/buttons',{method:'POST',body:JSON.stringify(editBtn)});
-  }else{
-    await api('/buttons/'+editBtn.id,{method:'PUT',body:JSON.stringify(editBtn)});
+  if (!editBtn.label || !editBtn.label.trim()) { alert('Preencha o texto do botão.'); return; }
+
+  var method, path;
+  if (editIdx === null) {
+    method = 'POST';
+    path = '/buttons';
+  } else {
+    method = 'PUT';
+    path = '/buttons/' + editBtn.id;
   }
-  closeEditor();
-  load();
+
+  api(path, method, editBtn).then(function() {
+    closeEditor();
+    load();
+  }).catch(function(err) {
+    console.error('Save error:', err);
+    alert('Erro ao salvar botão.');
+  });
 }
 
 // ── Start ──
