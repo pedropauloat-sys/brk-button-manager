@@ -609,10 +609,13 @@ function buildTree(teams, agents) {
   // Render unassigned agents
   if (unassigned.length > 0) {
     var isOpenNone = openGroups['none'];
+    var noneChecked = unassigned.every(function(ua) {
+      return b.visible_to.indexOf((ua.email || '').toLowerCase()) !== -1;
+    }) && unassigned.length > 0;
     html += '<div class="tree-group" data-team-idx="none">';
     html += '<div class="tree-group-header">';
     html += '<span class="tree-arrow' + (isOpenNone ? ' open' : '') + '">▶</span>';
-    html += '<input type="checkbox" class="tree-check" data-team-check="none" style="visibility:hidden">';
+    html += '<input type="checkbox" class="tree-check" data-team-check="none"' + (noneChecked ? ' checked' : '') + '>';
     html += '<label>👤 Sem time</label>';
     html += '<span class="tree-count">' + unassigned.length + ' membros</span>';
     html += '</div>';
@@ -662,11 +665,35 @@ function buildTree(teams, agents) {
 
       if (target.hasAttribute('data-team-check')) {
         var tIdx = target.getAttribute('data-team-check');
-        if (tIdx === 'none') return;
-        var team = curTeams[parseInt(tIdx)];
-        if (!team) return;
-        var teamVal = 'team:' + team.name.toLowerCase();
-        var members = team.members || [];
+        var curTeamObj = curTeams[parseInt(tIdx)];
+
+        // Handle "Sem time" group
+        if (tIdx === 'none') {
+          var curUnassigned = (window.__brkCachedAgents || []).filter(function(ag) {
+            var assigned = {};
+            curTeams.forEach(function(t) { (t.members || []).forEach(function(m) { if (m.email) assigned[m.email.toLowerCase()] = true; }); });
+            return ag.email && !assigned[ag.email.toLowerCase()];
+          });
+          if (target.checked) {
+            curUnassigned.forEach(function(ua) {
+              var em = (ua.email || '').toLowerCase();
+              if (em && currentBtn.visible_to.indexOf(em) === -1) currentBtn.visible_to.push(em);
+            });
+          } else {
+            curUnassigned.forEach(function(ua) {
+              var em = (ua.email || '').toLowerCase();
+              var idx = currentBtn.visible_to.indexOf(em);
+              if (idx !== -1) currentBtn.visible_to.splice(idx, 1);
+            });
+          }
+          updatePermTags(currentBtn);
+          buildTree(curTeams, window.__brkCachedAgents || []);
+          return;
+        }
+
+        if (!curTeamObj) return;
+        var teamVal = 'team:' + curTeamObj.name.toLowerCase();
+        var members = curTeamObj.members || [];
 
         if (target.checked) {
           if (currentBtn.visible_to.indexOf(teamVal) === -1) currentBtn.visible_to.push(teamVal);
