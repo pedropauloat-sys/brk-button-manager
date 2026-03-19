@@ -144,12 +144,19 @@
                         // Enriquece cada time com seus membros
                         for (var ti = 0; ti < dataTeams.length; ti++) {
                             try {
+                                // Tenta buscar membros com autenticação por header (session auth)
                                 var resMembers = await fetch('/api/v1/accounts/' + accountId + '/teams/' + dataTeams[ti].id + '/team_members', {
                                     headers: { 'access-token': auth['access-token'], 'client': auth['client'], 'uid': auth['uid'] }
                                 });
                                 if (resMembers.ok) {
                                     dataTeams[ti].members = await resMembers.json();
-                                } else { dataTeams[ti].members = []; }
+                                } else {
+                                    // Fallback: tenta com user_access_token como query param
+                                    var resMembers2 = await fetch('/api/v1/accounts/' + accountId + '/teams/' + dataTeams[ti].id + '/team_members?user_access_token=' + encodeURIComponent(auth['access-token']));
+                                    if (resMembers2.ok) {
+                                        dataTeams[ti].members = await resMembers2.json();
+                                    } else { dataTeams[ti].members = []; }
+                                }
                             } catch(err) { dataTeams[ti].members = []; }
                         }
                         const iframe = document.getElementById('brk-mgr-iframe');
