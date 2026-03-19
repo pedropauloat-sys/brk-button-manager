@@ -117,23 +117,35 @@
     }
 
     window.addEventListener('message', async function(e) {
-        if (e.data && e.data.action === 'GET_AGENTS') {
+        if (e.data && (e.data.action === 'GET_AGENTS' || e.data.action === 'GET_TEAMS')) {
             const auth = getAuthToken();
             if (!auth) return;
             try {
                 const accountMatch = location.pathname.match(/accounts\\/(\\d+)/);
                 const accountId = accountMatch ? accountMatch[1] : 1;
-                const res = await fetch('/api/v1/accounts/' + accountId + '/agents', {
-                    headers: { 'access-token': auth['access-token'], 'client': auth['client'], 'uid': auth['uid'] }
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    const iframe = document.getElementById('brk-mgr-iframe');
-                    if (iframe && iframe.contentWindow) {
-                        iframe.contentWindow.postMessage({ action: 'SET_AGENTS', agents: data }, '*');
+                
+                if (e.data.action === 'GET_AGENTS') {
+                    const res = await fetch('/api/v1/accounts/' + accountId + '/agents', {
+                        headers: { 'access-token': auth['access-token'], 'client': auth['client'], 'uid': auth['uid'] }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        const iframe = document.getElementById('brk-mgr-iframe');
+                        if (iframe && iframe.contentWindow) iframe.contentWindow.postMessage({ action: 'SET_AGENTS', agents: data }, '*');
                     }
                 }
-            } catch (err) { console.error('Erro ao buscar agentes:', err); }
+                
+                if (e.data.action === 'GET_TEAMS') {
+                    const resTeams = await fetch('/api/v1/accounts/' + accountId + '/teams', {
+                        headers: { 'access-token': auth['access-token'], 'client': auth['client'], 'uid': auth['uid'] }
+                    });
+                    if (resTeams.ok) {
+                        const dataTeams = await resTeams.json();
+                        const iframe = document.getElementById('brk-mgr-iframe');
+                        if (iframe && iframe.contentWindow) iframe.contentWindow.postMessage({ action: 'SET_TEAMS', teams: dataTeams }, '*');
+                    }
+                }
+            } catch (err) { console.error('Erro ao buscar dados do Chatwoot:', err); }
         }
     });
 

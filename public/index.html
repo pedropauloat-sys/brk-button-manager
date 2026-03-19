@@ -519,12 +519,13 @@ function renderExibicao(body) {
   if (permTypeSelect) {
     permTypeSelect.addEventListener('change', function(e) {
       var currentEmailField = document.getElementById('f-email');
+      var currentTeamField = document.getElementById('f-team');
       if (e.target.value === 'team') {
         if (currentEmailField) currentEmailField.classList.add('hidden');
-        fTeam.classList.remove('hidden');
+        if (currentTeamField) currentTeamField.classList.remove('hidden');
       } else {
         if (currentEmailField) currentEmailField.classList.remove('hidden');
-        fTeam.classList.add('hidden');
+        if (currentTeamField) currentTeamField.classList.add('hidden');
       }
     });
   }
@@ -533,10 +534,11 @@ function renderExibicao(body) {
     addUserBtn.addEventListener('click', function() {
       var type = permTypeSelect ? permTypeSelect.value : 'user';
       var currentEmailField = document.getElementById('f-email');
+      var currentTeamField = document.getElementById('f-team');
       var val = '';
       
       if (type === 'team') {
-        val = fTeam.value.trim().toLowerCase();
+        if (currentTeamField) val = currentTeamField.value.trim().toLowerCase();
         if (val && !val.startsWith('team:')) val = 'team:' + val;
       } else {
         if (currentEmailField) val = currentEmailField.value.trim().toLowerCase();
@@ -586,25 +588,30 @@ load();
 </script>
  <script>
     // =======================================================
-    // INTEGRAÇÃO: Transforma input de email em Dropdown do Chatwoot
+    // INTEGRAÇÃO: Transforma input de email e time em Dropdowns do Chatwoot
     // =======================================================
     (function() {
         var cachedAgents = [];
+        var cachedTeams = [];
         
-        // Pede a lista de agentes para o Chatwoot logo que abre
+        // Pede a lista ao Chatwoot logo que abre
         window.parent.postMessage({ action: 'GET_AGENTS' }, '*');
+        window.parent.postMessage({ action: 'GET_TEAMS' }, '*');
         
-        // Quando o Chatwoot responder, guarda a lista e popula o select
+        // Quando o Chatwoot responder, guarda a lista e popula
         window.addEventListener('message', function(e) {
             if (e.data && e.data.action === 'SET_AGENTS') {
                 cachedAgents = e.data.agents || [];
                 populateSelect();
             }
+            if (e.data && e.data.action === 'SET_TEAMS') {
+                cachedTeams = e.data.teams || [];
+                populateTeamSelect();
+            }
         });
 
         function populateSelect() {
             var select = document.querySelector('select[data-chatwoot-agents="true"]');
-            // Só popula se já tiver agentes carregados e o select estiver vazio
             if (select && cachedAgents.length > 0 && select.options.length <= 1) {
                 var options = '<option value="">Selecione um usuário...</option>';
                 cachedAgents.forEach(function(a) {
@@ -614,22 +621,49 @@ load();
             }
         }
 
-        // Fica de olho na tela: sempre que o Modal abrir, injeta o Select no lugar do Input
+        function populateTeamSelect() {
+            var select = document.querySelector('select[data-chatwoot-teams="true"]');
+            if (select && cachedTeams.length > 0 && select.options.length <= 1) {
+                var options = '<option value="">Selecione um time...</option>';
+                cachedTeams.forEach(function(t) {
+                    options += '<option value="' + t.name + '">' + t.name + '</option>';
+                });
+                select.innerHTML = options;
+            }
+        }
+
+        // Fica de olho na tela: sempre que o Modal abrir, injeta
         var observer = new MutationObserver(function() {
+            // Input Usuarios
             var oldInput = document.querySelector('input[placeholder="nome@usebrk.com.br"]');
             if (oldInput && oldInput.tagName === 'INPUT') {
                 var select = document.createElement('select');
                 select.id = oldInput.id; 
                 select.className = oldInput.className;
                 select.style.cssText = oldInput.style.cssText;
-                select.style.appearance = 'auto'; // Mostra a setinha nativa do menu
+                select.style.appearance = 'auto';
                 select.style.cursor = 'pointer';
                 select.setAttribute('data-chatwoot-agents', 'true');
                 select.innerHTML = '<option value="">Carregando usuários do Chatwoot...</option>';
                 
-                // Troca um pelo outro
                 oldInput.parentNode.replaceChild(select, oldInput);
                 populateSelect();
+            }
+            
+            // Input Times
+            var oldTeamInput = document.querySelector('input[placeholder="Nome do time (ex: vendas)"]');
+            if (oldTeamInput && oldTeamInput.tagName === 'INPUT') {
+                var selectTeam = document.createElement('select');
+                selectTeam.id = oldTeamInput.id; 
+                selectTeam.className = oldTeamInput.className;
+                selectTeam.style.cssText = oldTeamInput.style.cssText;
+                selectTeam.style.appearance = 'auto';
+                selectTeam.style.cursor = 'pointer';
+                selectTeam.setAttribute('data-chatwoot-teams', 'true');
+                selectTeam.innerHTML = '<option value="">Carregando times do Chatwoot...</option>';
+                
+                oldTeamInput.parentNode.replaceChild(selectTeam, oldTeamInput);
+                populateTeamSelect();
             }
         });
         observer.observe(document.body, { childList: true, subtree: true });
