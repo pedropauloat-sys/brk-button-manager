@@ -418,11 +418,31 @@
     } catch (err) { return null; }
   }
 
+  async function fetchCurrentUserTeams() {
+    if (window.__brkCurrentUserTeams) return window.__brkCurrentUserTeams;
+    const auth = getAuthToken();
+    if (!auth || !auth['access-token']) return [];
+    try {
+        const match = location.pathname.match(/\/accounts\/(\d+)/);
+        const accountId = match ? match[1] : 1;
+        const res = await fetch('/api/v1/accounts/' + accountId + '/teams', {
+            headers: { 'access-token': auth['access-token'], 'client': auth['client'], 'uid': auth['uid'] }
+        });
+        if (!res.ok) return [];
+        const data = await res.json();
+        if (Array.isArray(data)) {
+            return data.filter(t => t.is_member).map(t => t.name);
+        }
+        return [];
+    } catch (err) { return []; }
+  }
+
   // ══════════════════════════════════════════════════════════════
   // INIT
   // ══════════════════════════════════════════════════════════════
   async function init(){
     window.__brkCurrentUserEmail = await fetchCurrentUserEmail();
+    window.__brkCurrentUserTeams = await fetchCurrentUserTeams();
     await fetchButtons();
 
     setTimeout(()=>{
