@@ -121,7 +121,7 @@
             const auth = getAuthToken();
             if (!auth) return;
             try {
-                const accountMatch = location.pathname.match(/accounts\\/(\\d+)/);
+                const accountMatch = location.pathname.match(/\/accounts\/(\d+)/);
                 const accountId = accountMatch ? accountMatch[1] : 1;
                 
                 if (e.data.action === 'GET_AGENTS') {
