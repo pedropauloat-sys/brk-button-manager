@@ -1,7 +1,7 @@
 # ⚡ BRK Button Manager
 
 > Construtor visual de botões de ação rápida para o **Chatwoot** — controle total por time, usuário e analytics incluídos.
-
+ 
 ---
 
 ## 💡 Por que foi desenvolvido?
