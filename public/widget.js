@@ -199,22 +199,42 @@
   function findBlocoAcoes() {
     const nativo = document.querySelector('.conversation--actions');
     if (nativo) return nativo;
-    const textos = document.querySelectorAll('span,div,p,h3,h4,strong');
+    
+    // Procura por textos de seções comuns no sidebar
+    const textos = document.querySelectorAll('span,div,p,h3,h4,strong,button,legend');
     for (let i = 0; i < textos.length; i++) {
-        const t = (textos[i].textContent||'').trim().toLowerCase();
-        if ((t === 'ações da conversa' || t === 'conversation actions')) {
+        if (textos[i].children.length > 1) continue; // Ignora wrappers com muitos filhos
+        
+        const t = (textos[i].textContent || '').trim().toLowerCase();
+        if (t === 'ações da conversa' || t === 'conversation actions' || t === 'agente atribuído' || t === 'assigned agent') {
             let parent = textos[i].parentElement;
-            for (let j = 0; j < 6; j++) {
-                if (parent && (parent.classList.contains('border-b') || parent.tagName === 'SECTION' || parent.classList.contains('mb-4') || parent.style.borderRadius || parent.classList.contains('conversation--actions'))) {
+            // Tenta subir no DOM até achar a raiz do componente (Accordion ou Section)
+            for (let j = 0; j < 8; j++) {
+                if (!parent) break;
+                
+                if (parent.tagName === 'SECTION' || 
+                    parent.classList.contains('border-b') || 
+                    parent.classList.contains('mb-4') || 
+                    parent.classList.contains('conversation--actions') ||
+                    (parent.parentElement && parent.parentElement.classList.contains('flex-col'))) {
                     return parent;
                 }
-                parent = parent ? parent.parentElement : null;
+                parent = parent.parentElement;
             }
+            // Fallback se não encontrou um pai estrutural óbvio
             if (textos[i].parentElement && textos[i].parentElement.parentElement) {
-                return textos[i].parentElement.parentElement.parentElement;
+                return textos[i].parentElement.parentElement;
             }
         }
     }
+    
+    // Fallback absoluto: tenta achar o wrapper principal do sidebar
+    const rightSidebar = document.querySelector('.conversation-settings, [data-testid="conversation-sidebar"], .conversation-sidebar-wrap');
+    if (rightSidebar && rightSidebar.firstElementChild) {
+       // pula o primeiro card (perfil) e insere depois
+       return rightSidebar.children.length > 1 ? rightSidebar.children[1] : rightSidebar.firstElementChild;
+    }
+    
     return null;
   }
 
@@ -301,15 +321,11 @@
     }
 
     const blocoAcoes = findBlocoAcoes();
-    if(!blocoAcoes || !blocoAcoes.parentElement) {
-      document.getElementById('brk-widget-wrap')?.remove();
-      return false;
-    }
 
     let existingAccordion = document.getElementById('brk-widget-wrap');
     if (existingAccordion) {
-        if (existingAccordion.nextElementSibling === blocoAcoes) {
-            return true;
+        if (blocoAcoes && existingAccordion.nextElementSibling === blocoAcoes) {
+            return true; // Já está no lugar certo
         } else {
             existingAccordion.remove();
         }
@@ -366,7 +382,23 @@
     renderGrp(null, noGroup);
     Object.keys(grouped).forEach(g => renderGrp(g, grouped[g]));
 
-    blocoAcoes.parentElement.insertBefore(accordion, blocoAcoes);
+    // Attach strategy (Garante que vai aparecer em algum lugar)
+    if (blocoAcoes && blocoAcoes.parentElement) {
+        blocoAcoes.parentElement.insertBefore(accordion, blocoAcoes);
+    } else {
+        const rs = document.querySelector('.conversation-settings, [data-testid="conversation-sidebar"], .conversation-sidebar-wrap');
+        if (rs) {
+           rs.appendChild(accordion);
+        } else {
+           accordion.style.position = 'fixed';
+           accordion.style.bottom = '20px';
+           accordion.style.right = '20px';
+           accordion.style.zIndex = '999999';
+           accordion.style.width = '300px';
+           document.body.appendChild(accordion);
+           console.warn('[BRK Widget] Ancorado como Flutuante porque o Sidebar não foi localizado.');
+        }
+    }
 
     accordion.querySelector('#brk-w-toggle').addEventListener('click', () => {
         const ic = accordion.querySelector('#brk-w-icon');

@@ -83,7 +83,6 @@ function parseBody(req) {
     req.on('data', c => {
       size += c.length;
       if (size > maxSize) {
-        req.destroy();
         reject(new Error('Payload too large'));
         return;
       }
@@ -143,7 +142,8 @@ async function handleAPI(req, res, url, method) {
 
   // Bloqueio de Segurança: Apenas botões ativos e cliques são públicos. O painel requer ADMIN_TOKEN.
   const isPublicRoute = (url === '/api/buttons/active' && method === 'GET') || 
-                        (url === '/api/analytics/click' && method === 'POST');
+                        (url === '/api/analytics/click' && method === 'POST') ||
+                        (url === '/widget.js' && method === 'GET');
 
   if (!isPublicRoute) {
     if (!process.env.ADMIN_TOKEN) {
