@@ -95,6 +95,14 @@
   .grp-header.drop-target{border-color:var(--accent);background:var(--bg3)}
   .grp-rows{display:none;padding-top:6px}
   .grp-rows.open{display:block}
+  .gpick{max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--input)}
+  .gpick-row{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);cursor:pointer;user-select:none}
+  .gpick-row:last-child{border-bottom:none}
+  .gpick-row:hover{background:rgba(255,255,255,.04)}
+  .gpick-row.locked{opacity:.5;cursor:default}
+  .gpick-row.locked:hover{background:transparent}
+  .gpick-name{font-size:13px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .gpick-cur{font-size:11px;color:var(--sub);margin-left:auto;flex-shrink:0;padding-left:8px}
   .hidden{display:none}
 </style>
 </head>
@@ -119,6 +127,7 @@
     <h1><em>⚡</em> BRK Button Manager <span class="badge">v1.0</span></h1>
     <div style="display:flex;gap:10px">
       <button class="btn btn-secondary" id="btn-analytics">📊 Analytics</button>
+      <button class="btn btn-secondary" id="btn-criar-grupo">📁 Criar grupo</button>
       <button class="btn btn-primary" id="btn-criar">+ Criar botão</button>
     </div>
   </div>
@@ -183,6 +192,36 @@
   </div>
 </div>
 
+<div id="group-overlay" class="modal-overlay hidden" style="z-index:150">
+  <div class="modal" style="width:520px;margin:auto">
+    <div class="modal-header">
+      <h2 id="group-title">Criar grupo</h2>
+      <button class="btn-icon" id="btn-close-group" style="font-size:18px">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Nome do grupo</label>
+        <input class="form-input" id="g-name" list="g-existing" placeholder="Ex: SAC ⚙, VENDAS, PAGAMENTO" autocomplete="off">
+        <datalist id="g-existing"></datalist>
+        <div class="form-hint" id="g-hint">Pode usar emoji no nome, como nos grupos atuais.</div>
+      </div>
+      <div class="form-group" style="margin-bottom:8px">
+        <label class="form-label">Botões deste grupo</label>
+        <input class="form-input" id="g-search" placeholder="Filtrar botões..." autocomplete="off" style="margin-bottom:8px">
+        <div class="gpick" id="g-list"></div>
+        <div class="form-hint">O grupo existe a partir dos botões que estão nele, então marque pelo menos um. Depois é possível arrastar outros botões para o grupo direto na lista.</div>
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:flex-end">
+      <div style="display:flex;gap:10px;align-items:center">
+        <span class="footer-count" id="g-count"></span>
+        <button class="btn btn-secondary" id="btn-cancel-group">Cancelar</button>
+        <button class="btn btn-primary" id="btn-save-group">Criar grupo</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="confirm-overlay" class="modal-overlay hidden" style="z-index:9999">
   <div class="modal" style="width:400px;margin:auto">
     <div class="modal-header">
@@ -217,6 +256,7 @@ document.getElementById('btn-analytics').addEventListener('click', function() {
     document.getElementById('view-home').classList.add('hidden');
     document.getElementById('view-analytics').classList.remove('hidden');
     document.getElementById('btn-criar').classList.add('hidden');
+    document.getElementById('btn-criar-grupo').classList.add('hidden');
     loadAnalytics();
   } else {
     currentView = 'home';
@@ -225,6 +265,7 @@ document.getElementById('btn-analytics').addEventListener('click', function() {
     document.getElementById('view-home').classList.remove('hidden');
     document.getElementById('view-analytics').classList.add('hidden');
     document.getElementById('btn-criar').classList.remove('hidden');
+    document.getElementById('btn-criar-grupo').classList.remove('hidden');
   }
 });
 document.getElementById('btn-criar').addEventListener('click', function(){ openEditor(null); });
@@ -663,6 +704,153 @@ function delBtn(i) {
       .then(function() { busy = false; });
   });
 }
+
+// ── Criar grupo (grupo = os botões que carregam aquele group_name) ──
+var groupSel = {};   // id do botão -> marcado manualmente
+
+function openGroupEditor() {
+  groupSel = {};
+  document.getElementById('g-name').value = '';
+  document.getElementById('g-search').value = '';
+
+  // sugere os grupos que já existem, para poder adicionar a um deles
+  var seen = {}, opts = '';
+  for (var i = 0; i < buttons.length; i++) {
+    var g = (buttons[i].group_name || '').trim();
+    if (g && !seen[g]) { seen[g] = true; opts += '<option value="' + escAttr(g) + '"></option>'; }
+  }
+  document.getElementById('g-existing').innerHTML = opts;
+
+  renderGroupPicker();
+  document.getElementById('group-overlay').classList.remove('hidden');
+  var nameEl = document.getElementById('g-name');
+  if (nameEl) nameEl.focus();
+}
+
+function closeGroupEditor() {
+  document.getElementById('group-overlay').classList.add('hidden');
+}
+
+// Botões que já estão no grupo digitado ficam marcados e travados —
+// tirar de um grupo se faz arrastando ou pelo editor do botão.
+function isLockedInGroup(b, name) {
+  return !!name && (b.group_name || '').trim().toLowerCase() === name.toLowerCase();
+}
+
+function renderGroupPicker() {
+  var name = (document.getElementById('g-name').value || '').trim();
+  var q = (document.getElementById('g-search').value || '').trim().toLowerCase();
+
+  var html = '', hidden = 0, lockedCount = 0, toMove = 0;
+
+  for (var i = 0; i < buttons.length; i++) {
+    var b = buttons[i];
+    var locked = isLockedInGroup(b, name);
+    if (locked) lockedCount++;
+    if (!locked && groupSel[b.id]) toMove++;
+    if (!matchesQuery(b, q)) { hidden++; continue; }
+
+    var checked = locked || !!groupSel[b.id];
+    var cur = (b.group_name || '').trim();
+    var curLabel = locked ? 'já no grupo' : (cur ? cur : 'sem grupo');
+
+    html += '<div class="gpick-row' + (locked ? ' locked' : '') + '"' + (locked ? '' : ' data-gsel="' + escAttr(b.id) + '"') + '>' +
+      '<input type="checkbox" class="tree-check"' + (checked ? ' checked' : '') + (locked ? ' disabled' : '') + ' tabindex="-1">' +
+      '<span style="font-size:15px;flex-shrink:0">' + (b.icon || '🔘') + '</span>' +
+      '<span class="gpick-name">' + escAttr(b.label || 'Sem nome') + '</span>' +
+      '<span class="gpick-cur">' + escAttr(curLabel) + '</span>' +
+    '</div>';
+  }
+
+  if (!html) {
+    html = '<div style="padding:20px;text-align:center;color:var(--sub);font-size:12px">' +
+      (buttons.length ? 'Nenhum botão corresponde ao filtro.' : 'Nenhum botão criado ainda.') + '</div>';
+  }
+  document.getElementById('g-list').innerHTML = html;
+
+  // Nome já existente = adicionar ao grupo, não criar outro
+  var hint = document.getElementById('g-hint');
+  var saveBtn = document.getElementById('btn-save-group');
+  if (name && lockedCount) {
+    hint.innerHTML = 'O grupo <strong>' + escAttr(name) + '</strong> já existe com ' + lockedCount +
+      ' botão(ões). Os que você marcar serão adicionados a ele.';
+    saveBtn.textContent = 'Adicionar ao grupo';
+  } else {
+    hint.textContent = 'Pode usar emoji no nome, como nos grupos atuais.';
+    saveBtn.textContent = 'Criar grupo';
+  }
+
+  var parts = [];
+  if (toMove) parts.push(toMove + ' botão(ões) a mover');
+  if (hidden && q) parts.push(hidden + ' oculto(s) pelo filtro');
+  document.getElementById('g-count').textContent = parts.join(' · ');
+
+  var ok = !!name && toMove > 0;
+  saveBtn.disabled = !ok;
+  saveBtn.style.opacity = ok ? '1' : '.45';
+  saveBtn.style.cursor = ok ? 'pointer' : 'not-allowed';
+}
+
+function saveGroup() {
+  var name = (document.getElementById('g-name').value || '').trim();
+  if (!name || busy) return;
+
+  var toMove = [];
+  for (var i = 0; i < buttons.length; i++) {
+    var b = buttons[i];
+    if (groupSel[b.id] && !isLockedInGroup(b, name)) toMove.push(b);
+  }
+  if (!toMove.length) return;
+
+  busy = true;
+  var chain = Promise.resolve();
+  toMove.forEach(function(b) {
+    chain = chain.then(function() {
+      b.group_name = name;
+      return api('/buttons/' + b.id, 'PUT', b);
+    });
+  });
+
+  chain.then(function() {
+    // deixa o grupo contíguo e grava o sort_order correspondente
+    normalizeOrder();
+    return api('/buttons/reorder', 'POST', { order: buttons.map(function(x){ return x.id; }) });
+  }).then(function() {
+    closeGroupEditor();
+    load();
+  }).catch(function(err) {
+    console.error('Group save error:', err);
+    alert('Erro ao salvar o grupo. A lista será recarregada.');
+    closeGroupEditor();
+    load();
+  }).then(function() { busy = false; });
+}
+
+(function bindGroupEditor() {
+  document.getElementById('btn-criar-grupo').addEventListener('click', openGroupEditor);
+  document.getElementById('btn-close-group').addEventListener('click', closeGroupEditor);
+  document.getElementById('btn-cancel-group').addEventListener('click', closeGroupEditor);
+  document.getElementById('btn-save-group').addEventListener('click', saveGroup);
+  document.getElementById('group-overlay').addEventListener('click', function(e) {
+    if (e.target === this) closeGroupEditor();
+  });
+  document.getElementById('g-name').addEventListener('input', renderGroupPicker);
+  document.getElementById('g-search').addEventListener('input', renderGroupPicker);
+  document.getElementById('g-name').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') saveGroup();
+  });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && !document.getElementById('group-overlay').classList.contains('hidden')) closeGroupEditor();
+  });
+  // marcar/desmarcar: delegação única no container da lista
+  document.getElementById('g-list').addEventListener('click', function(e) {
+    var row = e.target.closest('[data-gsel]');
+    if (!row) return;
+    var id = row.getAttribute('data-gsel');
+    if (groupSel[id]) delete groupSel[id]; else groupSel[id] = true;
+    renderGroupPicker();
+  });
+})();
 
 // ── Editor ──
 function openEditor(idx) {
