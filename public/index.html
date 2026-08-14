@@ -76,6 +76,25 @@
   .user-item{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg3);border-radius:6px;border:1px solid var(--border);margin-bottom:4px}
   .user-avatar{width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
   .footer-count{font-size:11px;color:var(--sub)}
+  .toolbar{display:flex;gap:8px;align-items:center;margin-bottom:14px}
+  .search-wrap{flex:1;position:relative;display:flex;align-items:center}
+  .search-wrap .search-icon{position:absolute;left:11px;font-size:12px;color:var(--sub);pointer-events:none}
+  .search-input{width:100%;padding:9px 12px 9px 32px;border:1px solid var(--border);border-radius:8px;background:var(--input);color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border-color .2s,box-shadow .2s}
+  .search-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(31,147,255,.15)}
+  .btn-mini{border:1px solid var(--border);background:transparent;color:var(--sub);border-radius:8px;padding:9px 12px;font:600 12px -apple-system,system-ui,sans-serif;cursor:pointer;white-space:nowrap;transition:all .15s}
+  .btn-mini:hover{color:var(--text);background:var(--bg3)}
+  .grp{margin-bottom:12px}
+  .grp-header{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;cursor:pointer;user-select:none;transition:background .15s,border-color .15s}
+  .grp-header:hover{background:var(--bg3)}
+  .grp-header .grp-arrow{font-size:10px;color:var(--sub);transition:transform .2s;width:12px;text-align:center;flex-shrink:0}
+  .grp-header.open .grp-arrow{transform:rotate(90deg)}
+  .grp-header .grp-name{font-size:13px;font-weight:700;letter-spacing:.02em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .grp-header .grp-name.nogroup{color:var(--sub);font-weight:600}
+  .grp-header .grp-meta{margin-left:auto;font-size:11px;color:var(--sub);flex-shrink:0}
+  .grp-header .grp-pill{font-size:10px;font-weight:700;background:var(--bg);border:1px solid var(--border);color:var(--sub);border-radius:10px;padding:2px 7px;flex-shrink:0}
+  .grp-header.drop-target{border-color:var(--accent);background:var(--bg3)}
+  .grp-rows{display:none;padding-top:6px}
+  .grp-rows.open{display:block}
   .hidden{display:none}
 </style>
 </head>
@@ -105,6 +124,13 @@
   </div>
   
   <div id="view-home">
+    <div class="toolbar">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input class="search-input" id="search" placeholder="Buscar por nome, descrição ou grupo..." autocomplete="off">
+      </div>
+      <button class="btn-mini" id="btn-collapse-all">Recolher tudo</button>
+    </div>
     <div id="list"></div>
     <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center">
       <span class="footer-count" id="count"></span>
@@ -152,6 +178,23 @@
       <div style="display:flex;gap:10px">
         <button class="btn btn-secondary" id="btn-cancel">Cancelar</button>
         <button class="btn btn-primary" id="btn-save">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="confirm-overlay" class="modal-overlay hidden" style="z-index:9999">
+  <div class="modal" style="width:400px;margin:auto">
+    <div class="modal-header">
+      <h2 id="confirm-title">Confirmar</h2>
+    </div>
+    <div class="modal-body">
+      <div id="confirm-text" style="font-size:14px;line-height:1.5"></div>
+    </div>
+    <div class="modal-footer" style="justify-content:flex-end">
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-secondary" id="confirm-cancel">Cancelar</button>
+        <button class="btn btn-danger" id="confirm-ok">Excluir</button>
       </div>
     </div>
   </div>
@@ -282,42 +325,168 @@ function loadAnalytics() {
   });
 }
 
+// ── Grupos (estado de recolhido, persistido) ──
+var collapsedGroups = {};
+try { collapsedGroups = JSON.parse(localStorage.getItem('brk_groups_collapsed') || '{}') || {}; } catch(e) { collapsedGroups = {}; }
+function saveCollapsed() {
+  try { localStorage.setItem('brk_groups_collapsed', JSON.stringify(collapsedGroups)); } catch(e) {}
+}
+
+var sections = [];    // seções na ordem em que foram renderizadas
+var filtering = false;
+
+function escAttr(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Monta as seções: sem grupo primeiro, depois grupos na ordem de primeira
+// aparição — exatamente a mesma regra que o widget usa no Chatwoot.
+function buildSections() {
+  var noGroup = [], byGroup = {}, order = [];
+  for (var i = 0; i < buttons.length; i++) {
+    var g = (buttons[i].group_name || '').trim();
+    if (!g) { noGroup.push(i); continue; }
+    if (!byGroup[g]) { byGroup[g] = []; order.push(g); }
+    byGroup[g].push(i);
+  }
+  var out = [];
+  if (noGroup.length) out.push({ name: '', label: 'Sem grupo', idxs: noGroup });
+  for (var k = 0; k < order.length; k++) out.push({ name: order[k], label: order[k], idxs: byGroup[order[k]] });
+  return out;
+}
+
+function matchesQuery(b, q) {
+  if (!q) return true;
+  return ((b.label || '') + ' ' + (b.description || '') + ' ' + (b.group_name || '')).toLowerCase().indexOf(q) !== -1;
+}
+
+function rowHTML(i, b) {
+  var actionLabel = b.action_type === 'webhook' ? '⚡ Webhook' : b.action_type === 'link' ? '🔗 Link' : '🪟 Modal';
+  var vis = !b.visible_to || !b.visible_to.length ? '👁 Todos' : '👤 ' + b.visible_to.length;
+  var desc = b.description ? '<div style="font-size:11px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + b.description + '</div>' : '';
+
+  return '<div class="table-row" draggable="' + (filtering ? 'false' : 'true') + '" ondragstart="brkDrag(event,'+i+')" ondragend="brkDragEnd(event)" ondragover="brkDragOver(event)" ondragleave="brkDragLeave(event)" ondrop="brkDrop(event,'+i+')" data-edit="' + i + '">' +
+    '<div style="display:flex;align-items:center;gap:6px"><span style="cursor:grab;color:var(--sub);font-size:16px;user-select:none" title="Arraste para reordenar ou mover de grupo" onmousedown="event.stopPropagation()">⠿</span><button class="toggle ' + (b.active !== false ? 'on' : 'off') + '" data-toggle="' + i + '"><div class="dot"></div></button></div>' +
+    '<div style="display:flex;align-items:center;gap:8px;min-width:0"><span style="font-size:16px;flex-shrink:0">' + (b.icon || '🔘') + '</span><div style="min-width:0"><div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (b.label || 'Sem nome') + '</div>' + desc + '</div></div>' +
+    '<span style="font-size:12px;color:var(--sub)">' + actionLabel + '</span>' +
+    '<span style="font-size:12px;color:var(--sub)">' + vis + '</span>' +
+    '<div class="actions">' +
+      '<button class="btn-icon" data-edit-btn="' + i + '" title="Editar">✏️</button>' +
+      '<button class="btn-icon" data-dup="' + i + '" title="Duplicar">📋</button>' +
+      '<button class="btn-icon" data-del="' + i + '" title="Excluir" style="color:var(--danger)">🗑️</button>' +
+    '</div>' +
+  '</div>';
+}
+
 // ── Render List ──
 function render() {
   var el = document.getElementById('list');
-  document.getElementById('count').textContent = buttons.length + ' botão(ões) configurados';
+  var searchEl = document.getElementById('search');
+  var q = (searchEl ? searchEl.value : '').trim().toLowerCase();
+  filtering = !!q;
 
   if (!buttons.length) {
+    document.getElementById('count').textContent = '0 botões configurados';
     el.innerHTML = '<div class="empty"><div class="icon">📭</div><div class="title">Nenhum botão criado</div><div class="sub">Clique em "+ Criar botão" para começar.</div></div>';
     return;
   }
 
+  sections = buildSections();
+
   var html = '<div class="table-header"><span>AT.</span><span>TEXTO NO BOTÃO</span><span>AÇÃO</span><span>VISÍVEL</span><span style="text-align:right">OPÇÕES</span></div>';
+  var shown = 0;
 
-  for (var i = 0; i < buttons.length; i++) {
-    var b = buttons[i];
-    var actionLabel = b.action_type === 'webhook' ? '⚡ Webhook' : b.action_type === 'link' ? '🔗 Link' : '🪟 Modal';
-    var vis = !b.visible_to || !b.visible_to.length ? '👁 Todos' : '👤 ' + b.visible_to.length;
-    var desc = b.description ? '<div style="font-size:11px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + b.description + '</div>' : '';
+  for (var s = 0; s < sections.length; s++) {
+    var sec = sections[s];
+    var visibleIdxs = [];
+    var activeCount = 0;
+    for (var n = 0; n < sec.idxs.length; n++) {
+      var bi = sec.idxs[n];
+      if (buttons[bi].active !== false) activeCount++;
+      if (matchesQuery(buttons[bi], q)) visibleIdxs.push(bi);
+    }
+    if (filtering && !visibleIdxs.length) continue;   // esconde grupos sem resultado
+    shown += visibleIdxs.length;
 
-    html += '<div class="table-row" draggable="true" ondragstart="brkDrag(event,'+i+')" ondragend="brkDragEnd(event)" ondragover="brkDragOver(event)" ondragleave="brkDragLeave(event)" ondrop="brkDrop(event,'+i+')" data-edit="' + i + '">' +
-      '<div style="display:flex;align-items:center;gap:6px"><span style="cursor:grab;color:var(--sub);font-size:16px;user-select:none" title="Arraste para reordenar" onmousedown="event.stopPropagation()">⠿</span><button class="toggle ' + (b.active !== false ? 'on' : 'off') + '" data-toggle="' + i + '"><div class="dot"></div></button></div>' +
-      '<div style="display:flex;align-items:center;gap:8px;min-width:0"><span style="font-size:16px;flex-shrink:0">' + (b.icon || '🔘') + '</span><div style="min-width:0"><div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (b.label || 'Sem nome') + '</div>' + desc + '</div></div>' +
-      '<span style="font-size:12px;color:var(--sub)">' + actionLabel + '</span>' +
-      '<span style="font-size:12px;color:var(--sub)">' + vis + '</span>' +
-      '<div class="actions">' +
-        '<button class="btn-icon" data-edit-btn="' + i + '" title="Editar">✏️</button>' +
-        '<button class="btn-icon" data-dup="' + i + '" title="Duplicar">📋</button>' +
-        '<button class="btn-icon" data-del="' + i + '" title="Excluir" style="color:var(--danger)">🗑️</button>' +
+    // Ao filtrar, tudo aberto; fora do filtro respeita o estado salvo.
+    var open = filtering ? true : !collapsedGroups[sec.name];
+    var meta = sec.idxs.length + (sec.idxs.length === 1 ? ' botão' : ' botões');
+    if (activeCount < sec.idxs.length) meta += ' · ' + activeCount + ' ativo' + (activeCount === 1 ? '' : 's');
+
+    html += '<div class="grp">' +
+      '<div class="grp-header' + (open ? ' open' : '') + '" data-grp-toggle="' + s + '" ondragover="brkGrpDragOver(event)" ondragleave="brkGrpDragLeave(event)" ondrop="brkGrpDrop(event,'+s+')" title="Clique para recolher/expandir · arraste um botão aqui para mover de grupo">' +
+        '<span class="grp-arrow">▶</span>' +
+        '<span class="grp-name' + (sec.name ? '' : ' nogroup') + '">' + escAttr(sec.label) + '</span>' +
+        (filtering && visibleIdxs.length < sec.idxs.length ? '<span class="grp-pill">' + visibleIdxs.length + ' de ' + sec.idxs.length + '</span>' : '') +
+        '<span class="grp-meta">' + meta + '</span>' +
       '</div>' +
-    '</div>';
+      '<div class="grp-rows' + (open ? ' open' : '') + '">';
+
+    for (var r = 0; r < visibleIdxs.length; r++) {
+      html += rowHTML(visibleIdxs[r], buttons[visibleIdxs[r]]);
+    }
+
+    html += '</div></div>';
+  }
+
+  if (filtering && !shown) {
+    html += '<div class="empty"><div class="icon">🔍</div><div class="title">Nada encontrado</div><div class="sub">Nenhum botão corresponde à busca.</div></div>';
   }
 
   el.innerHTML = html;
 
-  // Bind events via delegation
+  var totalGroups = 0;
+  for (var g2 = 0; g2 < sections.length; g2++) if (sections[g2].name) totalGroups++;
+  document.getElementById('count').textContent = filtering
+    ? shown + ' de ' + buttons.length + ' botões'
+    : buttons.length + ' botão(ões) em ' + totalGroups + ' grupo(s)';
+
+  var collapseBtn = document.getElementById('btn-collapse-all');
+  if (collapseBtn) collapseBtn.textContent = anyGroupOpen() ? 'Recolher tudo' : 'Expandir tudo';
+}
+
+function anyGroupOpen() {
+  for (var s = 0; s < sections.length; s++) if (!collapsedGroups[sections[s].name]) return true;
+  return false;
+}
+
+function toggleGroup(s) {
+  var sec = sections[s];
+  if (!sec) return;
+  if (filtering) return;   // durante a busca tudo fica aberto
+  if (collapsedGroups[sec.name]) delete collapsedGroups[sec.name];
+  else collapsedGroups[sec.name] = true;
+  saveCollapsed();
+  render();
+}
+
+(function bindToolbar() {
+  var searchEl = document.getElementById('search');
+  if (searchEl) searchEl.addEventListener('input', function(){ render(); });
+  var collapseBtn = document.getElementById('btn-collapse-all');
+  if (collapseBtn) collapseBtn.addEventListener('click', function() {
+    var collapseAll = anyGroupOpen();
+    collapsedGroups = {};
+    if (collapseAll) {
+      for (var s = 0; s < sections.length; s++) collapsedGroups[sections[s].name] = true;
+    }
+    saveCollapsed();
+    render();
+  });
+})();
+
+// Delegação de eventos da lista: registrada UMA ÚNICA VEZ.
+// (Antes ficava dentro de render(), então cada load() empilhava outro listener
+//  e um clique disparava a ação N vezes — duplicava/excluía em série.)
+(function bindListEvents() {
+  var el = document.getElementById('list');
+  if (!el || el.getAttribute('data-list-bound')) return;
+  el.setAttribute('data-list-bound', 'true');
+
   el.addEventListener('click', function(e) {
-    var target = e.target.closest('[data-toggle]');
+    var target = e.target.closest('[data-grp-toggle]');
+    if (target) { toggleGroup(parseInt(target.getAttribute('data-grp-toggle'))); return; }
+    target = e.target.closest('[data-toggle]');
     if (target) { e.stopPropagation(); toggleBtn(parseInt(target.getAttribute('data-toggle'))); return; }
     target = e.target.closest('[data-dup]');
     if (target) { e.stopPropagation(); dupBtn(parseInt(target.getAttribute('data-dup'))); return; }
@@ -328,7 +497,7 @@ function render() {
     target = e.target.closest('[data-edit]');
     if (target) { openEditor(parseInt(target.getAttribute('data-edit'))); }
   });
-}
+})();
 
 // ── Drag & Drop ──
 var draggedIdx = null;
@@ -340,6 +509,7 @@ window.brkDrag = function(e, idx) {
 };
 window.brkDragEnd = function(e) {
   e.target.style.opacity = '1';
+  draggedIdx = null;   // evita que um drop tardio use um índice velho
 };
 window.brkDragOver = function(e) {
   e.preventDefault();
@@ -356,12 +526,75 @@ window.brkDrop = function(e, targetIdx) {
   var row = e.target.closest('.table-row');
   if (row) row.style.borderTop = '1px solid var(--border)';
   if (draggedIdx === null || draggedIdx === targetIdx) return;
+
+  var target = buttons[targetIdx];
+  var movedGroup = (buttons[draggedIdx].group_name || '').trim();
+  var targetGroup = (target.group_name || '').trim();
+
   var item = buttons.splice(draggedIdx, 1)[0];
   buttons.splice(targetIdx, 0, item);
+
+  // Solta em cima de uma linha de outro grupo = move o botão para aquele grupo.
+  if (movedGroup !== targetGroup) item.group_name = target.group_name || '';
+
+  persistOrder(item, movedGroup !== targetGroup);
+};
+
+// Solta em cima do cabeçalho de um grupo = manda para o fim daquele grupo.
+window.brkGrpDragOver = function(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  var h = e.target.closest('.grp-header');
+  if (h) h.classList.add('drop-target');
+};
+window.brkGrpDragLeave = function(e) {
+  var h = e.target.closest('.grp-header');
+  if (h) h.classList.remove('drop-target');
+};
+window.brkGrpDrop = function(e, secIdx) {
+  e.preventDefault();
+  var h = e.target.closest('.grp-header');
+  if (h) h.classList.remove('drop-target');
+  var sec = sections[secIdx];
+  if (!sec || draggedIdx === null) return;
+
+  var item = buttons[draggedIdx];
+  var movedGroup = (item.group_name || '').trim();
+  if (movedGroup === sec.name && sec.idxs[sec.idxs.length - 1] === draggedIdx) return; // já é o último do grupo
+
+  var lastIdx = sec.idxs[sec.idxs.length - 1];
+  buttons.splice(draggedIdx, 1);
+  if (draggedIdx < lastIdx) lastIdx--;
+  buttons.splice(lastIdx + 1, 0, item);
+  item.group_name = sec.name;
+
+  persistOrder(item, movedGroup !== sec.name);
+};
+
+// Reordena o array na mesma ordem em que a lista é exibida (sem grupo primeiro,
+// depois cada grupo junto), para o sort_order salvo bater com o que se vê na tela.
+function normalizeOrder() {
+  var secs = buildSections();
+  var flat = [];
+  for (var s = 0; s < secs.length; s++) {
+    for (var n = 0; n < secs[s].idxs.length; n++) flat.push(buttons[secs[s].idxs[n]]);
+  }
+  buttons = flat;
+}
+
+// Salva a nova ordem e, se o grupo mudou, também o group_name do botão movido.
+function persistOrder(item, groupChanged) {
+  normalizeOrder();
   render();
   var orderIds = buttons.map(function(b){ return b.id; });
-  api('/buttons/reorder', 'POST', { order: orderIds });
-};
+  var p = groupChanged ? api('/buttons/' + item.id, 'PUT', item) : Promise.resolve();
+  p.then(function() {
+    return api('/buttons/reorder', 'POST', { order: orderIds });
+  }).catch(function(err) {
+    console.error('Reorder error:', err);
+    load();   // desfaz o estado local se o servidor recusou
+  });
+}
 
 // ── Toggle ──
 function toggleBtn(i) {
@@ -370,18 +603,65 @@ function toggleBtn(i) {
   api('/buttons/' + b.id, 'PUT', b).then(load);
 }
 
+// ── Confirmação (modal próprio; evita o popup nativo do iframe) ──
+var confirmPending = null;
+(function bindConfirm() {
+  function close() {
+    document.getElementById('confirm-overlay').classList.add('hidden');
+    confirmPending = null;
+  }
+  document.getElementById('confirm-ok').addEventListener('click', function() {
+    var cb = confirmPending;
+    close();
+    if (cb) cb();
+  });
+  document.getElementById('confirm-cancel').addEventListener('click', close);
+  document.getElementById('confirm-overlay').addEventListener('click', function(e) {
+    if (e.target === this) close();
+  });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && confirmPending) close();
+  });
+})();
+
+function askConfirm(text, okLabel, onConfirm) {
+  if (confirmPending) return; // já existe um diálogo aberto
+  confirmPending = onConfirm;
+  document.getElementById('confirm-text').textContent = text;
+  document.getElementById('confirm-ok').textContent = okLabel || 'Confirmar';
+  document.getElementById('confirm-overlay').classList.remove('hidden');
+}
+
 // ── Duplicate ──
+var busy = false;
 function dupBtn(i) {
-  var clone = JSON.parse(JSON.stringify(buttons[i]));
+  if (busy) return;
+  var b = buttons[i];
+  if (!b) return;
+  busy = true;
+  var clone = JSON.parse(JSON.stringify(b));
   delete clone.id;
   clone.label = (clone.label || '') + ' (cópia)';
-  api('/buttons', 'POST', clone).then(load);
+  api('/buttons', 'POST', clone)
+    .then(load)
+    .catch(function(err) { console.error('Duplicate error:', err); })
+    .then(function() { busy = false; });
 }
 
 // ── Delete ──
 function delBtn(i) {
-  if (!confirm('Excluir este botão?')) return;
-  api('/buttons/' + buttons[i].id, 'DELETE').then(load);
+  // Abrir a confirmação não depende de `busy` — a trava vale só para a escrita.
+  var b = buttons[i];
+  if (!b) return;
+  var id = b.id;
+  askConfirm('Excluir o botão "' + (b.label || 'sem nome') + '"? Esta ação não pode ser desfeita.', 'Excluir', function() {
+    if (busy) return;
+    busy = true;
+    api('/buttons/' + id, 'DELETE')
+      .then(load)
+      .catch(function(err) { console.error('Delete error:', err); })
+      .then(function() { busy = false; });
+  });
 }
 
 // ── Editor ──
@@ -400,7 +680,21 @@ function openEditor(idx) {
 
   if (idx !== null) {
     var delEditorBtn = document.getElementById('btn-del-editor');
-    if (delEditorBtn) delEditorBtn.addEventListener('click', function(){ delBtn(idx); closeEditor(); });
+    // Fecha o editor só depois de confirmar — se cancelar, o editor continua aberto.
+    if (delEditorBtn) delEditorBtn.addEventListener('click', function(){
+      var b = buttons[idx];
+      if (!b) return;
+      var id = b.id;
+      askConfirm('Excluir o botão "' + (b.label || 'sem nome') + '"? Esta ação não pode ser desfeita.', 'Excluir', function() {
+        if (busy) return;
+        busy = true;
+        closeEditor();
+        api('/buttons/' + id, 'DELETE')
+          .then(load)
+          .catch(function(err) { console.error('Delete error:', err); })
+          .then(function() { busy = false; });
+      });
+    });
   }
 
   activeTab = 'acoes';
@@ -525,21 +819,35 @@ function renderCondicoes(body) {
 
   html += '</div><button class="btn btn-secondary" style="width:100%;margin-top:10px" id="btn-add-cond">+ Adicionar condição</button>';
   body.innerHTML = html;
+}
 
-  // Bind events
+// Delegação do corpo do editor: registrada UMA ÚNICA VEZ.
+// (Antes ficava dentro de renderCondicoes/renderExibicao, e cada troca de aba
+//  empilhava um listener — remover 1 condição/permissão removia várias.)
+(function bindModalBodyEvents() {
+  var body = document.getElementById('modal-body');
+  if (!body || body.getAttribute('data-body-bound')) return;
+  body.setAttribute('data-body-bound', 'true');
+
   body.addEventListener('change', function(e) {
+    if (!editBtn) return;
     var t = e.target;
+    if (!t.hasAttribute) return;
     if (t.hasAttribute('data-cond-field')) editBtn.conditions[parseInt(t.getAttribute('data-cond-field'))].field = t.value;
     if (t.hasAttribute('data-cond-op')) editBtn.conditions[parseInt(t.getAttribute('data-cond-op'))].op = t.value;
     if (t.hasAttribute('data-cond-val')) editBtn.conditions[parseInt(t.getAttribute('data-cond-val'))].value = t.value;
   });
+
   body.addEventListener('click', function(e) {
+    if (!editBtn) return;
     var t = e.target.closest('[data-cond-del]');
-    if (t) { editBtn.conditions.splice(parseInt(t.getAttribute('data-cond-del')), 1); renderTab(); }
+    if (t) { editBtn.conditions.splice(parseInt(t.getAttribute('data-cond-del')), 1); renderTab(); return; }
+    t = e.target.closest('#btn-add-cond');
+    if (t) { editBtn.conditions.push({ field: 'label', op: 'equals', value: '' }); renderTab(); return; }
+    t = e.target.closest('[data-user-del]');
+    if (t) { editBtn.visible_to.splice(parseInt(t.getAttribute('data-user-del')), 1); renderTab(); return; }
   });
-  var addBtn = document.getElementById('btn-add-cond');
-  if (addBtn) addBtn.addEventListener('click', function() { editBtn.conditions.push({field:'label',op:'equals',value:''}); renderTab(); });
-}
+})();
 
 // ── Aba Exibição ──
 function renderExibicao(body) {
@@ -586,11 +894,7 @@ function renderExibicao(body) {
     window.__brkTreeBuilt = false;
     buildTree(window.__brkCachedTeams, window.__brkCachedAgents);
   }
-
-  body.addEventListener('click', function(e) {
-    var t = e.target.closest('[data-user-del]');
-    if (t) { editBtn.visible_to.splice(parseInt(t.getAttribute('data-user-del')), 1); renderTab(); }
-  });
+  // Cliques em [data-user-del] são tratados pela delegação única em #modal-body.
 }
 
 function buildTree(teams, agents) {
